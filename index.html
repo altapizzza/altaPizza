@@ -384,25 +384,31 @@
       const t = byId('toggleTheme');
       if(t){ t.textContent = (mode==='dark') ? '☀️' : '🌙'; t.title = (mode==='dark') ? 'Mode clair' : 'Mode sombre'; }
     }
+/* ===== Firebase / Firestore / Auth ===== */
+let db = null;
 
-    /* ===== Firebase / Firestore / Auth ===== */
-    let db = null;
+(async function initFirebase(){
+  try{
+    const firebaseConfig = {
+      apiKey: "AIzaSyAZhays9gJNV_KCFsA-W3O833EUriBAScM",
+      authDomain: "pizza-commande.firebaseapp.com",
+      projectId: "pizza-commande",
+      storageBucket: "pizza-commande.firebasestorage.app",
+      messagingSenderId: "405777576848",
+      appId: "1:405777576848:web:40101029cc7e8697f07915"
+    };
 
-    (function initFirebase(){
-      try{
-        // ⚠⚠⚠ REMPLIS ICI AVEC TA VRAIE CONFIG FIREBASE ⚠⚠⚠
-        // Copie/colle le bloc firebaseConfig donné par la console Firebase (app Web)
-        const firebaseConfig = {
-          apiKey: "A_RENSEIGNER",
-          authDomain: "A_RENSEIGNER.firebaseapp.com",
-          projectId: "A_RENSEIGNER",
-          // tu peux laisser les champs en plus (storageBucket, etc.) si Firebase te les donne
-        };
-        firebase.initializeApp(firebaseConfig);
-      }catch(e){
-        console.warn('Firebase non initialisé :', e);
-      }
-    })();
+    // Initialisation Firebase
+    const app = firebase.initializeApp(firebaseConfig);
+    db = firebase.firestore();
+
+    console.log("Firebase prêt ✔️");
+
+  } catch(err){
+    console.error("Erreur Firebase :", err);
+    alert("Erreur Firebase : "+err.message);
+  }
+})();
 
     function initAppAfterLogin(){
       if(initAppAfterLogin._done) return;
