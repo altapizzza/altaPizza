@@ -5,8 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Pizzeria – Prise de commande (À emporter)</title>
 
-  <!-- Firebase v8 (compat, plus simple pour iPad + Android) -->
+  <!-- Firebase v8 (app + auth + firestore) -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
   <style>
@@ -129,6 +130,19 @@
   </style>
 </head>
 <body>
+
+  <!-- OVERLAY CONNEXION -->
+  <div id="loginOverlay" style="position:fixed;inset:0;background:rgba(15,17,21,.96);display:flex;align-items:center;justify-content:center;z-index:3000;">
+    <div style="background:#fff;padding:20px;border-radius:12px;max-width:320px;width:90%;box-shadow:0 20px 40px rgba(0,0,0,.35);">
+      <h2 style="margin-top:0;margin-bottom:6px;font-size:18px;">Connexion</h2>
+      <p class="help" style="margin-top:0;margin-bottom:10px;">Réservé au personnel (iPad / cuisine).</p>
+      <input id="loginEmail" type="email" placeholder="Email" style="width:100%;margin-bottom:8px;padding:8px 10px;border-radius:8px;border:1px solid #ddd;">
+      <input id="loginPassword" type="password" placeholder="Mot de passe" style="width:100%;margin-bottom:8px;padding:8px 10px;border-radius:8px;border:1px solid:#ddd;">
+      <button id="loginBtn" class="btn" style="width:100%;margin-bottom:6px;">Se connecter</button>
+      <div id="loginError" class="help" style="color:#b91c1c;min-height:18px;"></div>
+    </div>
+  </div>
+
   <!-- Bandeau post-it -->
   <div class="banner" id="banner">
     <div class="banner-inner">
@@ -371,30 +385,76 @@
       if(t){ t.textContent = (mode==='dark') ? '☀️' : '🌙'; t.title = (mode==='dark') ? 'Mode clair' : 'Mode sombre'; }
     }
 
-    /* ===== Firebase / Firestore ===== */
+    /* ===== Firebase / Firestore / Auth ===== */
     let db = null;
+
     (function initFirebase(){
       try{
-        // ⬇⬇⬇ REMPLIS ICI AVEC TA CONFIG FIREBASE ⬇⬇⬇
-    const firebaseConfig = {
-  		apiKey: "AIzaSyAZhays9gJNV_KCFsA-W3O833EUriBAScM",
-  		authDomain: "pizza-commande.firebaseapp.com",
- 		projectId: "pizza-commande",
-  		storageBucket: "pizza-commande.firebasestorage.app",
-  		messagingSenderId: "405777576848",
- 		appId: "1:405777576848:web:40101029cc7e8697f07915"
-};
-        if(firebaseConfig.apiKey && firebaseConfig.projectId){
-          firebase.initializeApp(firebaseConfig);
-          db = firebase.firestore();
-          console.log('Firebase prêt');
-        } else {
-          console.warn('Config Firebase incomplète : pas de synchro en ligne.');
-        }
+        // ⚠⚠⚠ REMPLIS ICI AVEC TA VRAIE CONFIG FIREBASE ⚠⚠⚠
+        // Copie/colle le bloc firebaseConfig donné par la console Firebase (app Web)
+        const firebaseConfig = {
+          apiKey: "A_RENSEIGNER",
+          authDomain: "A_RENSEIGNER.firebaseapp.com",
+          projectId: "A_RENSEIGNER",
+          // tu peux laisser les champs en plus (storageBucket, etc.) si Firebase te les donne
+        };
+        firebase.initializeApp(firebaseConfig);
       }catch(e){
         console.warn('Firebase non initialisé :', e);
       }
     })();
+
+    function initAppAfterLogin(){
+      if(initAppAfterLogin._done) return;
+      initAppAfterLogin._done = true;
+      try{
+        db = firebase.firestore();
+        setupRealtime();
+        showHealth('Connecté à Firebase', 'ok', 1500);
+      }catch(e){
+        console.error(e);
+        showHealth('Erreur init Firestore : '+(e.message||e), 'error');
+      }
+    }
+
+    function setupAuth(){
+      const overlay = byId('loginOverlay');
+      const emailEl = byId('loginEmail');
+      const passEl  = byId('loginPassword');
+      const btn     = byId('loginBtn');
+      const errBox  = byId('loginError');
+
+      if(!firebase || !firebase.auth){
+        overlay.style.display = 'flex';
+        errBox.textContent = 'Firebase Auth indisponible.';
+        return;
+      }
+
+      btn.addEventListener('click', ()=>{
+        const email = (emailEl.value||'').trim();
+        const pass  = passEl.value||'';
+        errBox.textContent = '';
+        if(!email || !pass){
+          errBox.textContent = 'Email et mot de passe requis.';
+          return;
+        }
+        firebase.auth().signInWithEmailAndPassword(email, pass)
+          .then(()=>{ /* onAuthStateChanged gère la suite */ })
+          .catch((e)=>{
+            console.error(e);
+            errBox.textContent = 'Connexion impossible : ' + (e.message || e);
+          });
+      });
+
+      firebase.auth().onAuthStateChanged((user)=>{
+        if(user){
+          overlay.style.display = 'none';
+          initAppAfterLogin();
+        }else{
+          overlay.style.display = 'flex';
+        }
+      });
+    }
 
     /* ===== Tickets ===== */
     function todayKey(){ const d=new Date(); const y=d.getFullYear(); const m=String(d.getMonth()+1).padStart(2,'0'); const day=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${day}`; }
@@ -830,6 +890,9 @@
     }
 
     /* ===== Synchro Firestore temps réel ===== */
+    function sameDayISO(ts){ const d=new Date(ts); return d.toISOString().slice(0,10); }
+    function todayISO(){ return new Date().toISOString().slice(0,10); }
+
     function setupRealtime(){
       if(!db) return;
 
@@ -1123,9 +1186,6 @@
     function printSavedOrder(id){ const o = savedOrders.find(x=>x.id===id); if(o) printOrder(o); }
 
     /* ===== Archivage ===== */
-    function sameDayISO(ts){ const d=new Date(ts); return d.toISOString().slice(0,10); }
-    function todayISO(){ return new Date().toISOString().slice(0,10); }
-
     function confirmDeliver(id){
       const o = savedOrders.find(x=>x.id===id);
       if(!o) return;
@@ -1242,7 +1302,6 @@
       if (!confirm('Confirmer encore : cette action est irréversible.')) return;
 
       if(db){
-        // suppression côté Firestore
         const batch = db.batch();
         archivedOrders.forEach(o=>{
           batch.delete(db.collection('archivedOrders').doc(o.id));
@@ -1603,7 +1662,13 @@
         renderOrderTable();
         buildSlots();
         updateFieldHints();
-        if(db){ setupRealtime(); }
+
+        if(window.firebase && firebase.auth){
+          setupAuth();
+        }else{
+          showHealth('Firebase Auth non disponible', 'error');
+        }
+
         setTimeout(selfTests, 50);
       }catch(e){
         console.error(e);
