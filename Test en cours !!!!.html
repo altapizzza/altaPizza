@@ -1,0 +1,1508 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pizzeria – Prise de commande (À emporter)</title>
+  <style>
+    :root{
+      --bg:#faf7f2; --ink:#1f2328; --brand:#e63946; --accent:#1d3557;
+      --postit:#fff7f2; --postit-shadow:rgba(0,0,0,.15); --card:#ffffff;
+      --ok:#2a9d8f; --warn:#f4a261;
+    }
+    :root.dark{
+      --bg:#0f1115; --ink:#e5e7eb; --brand:#e63946; --accent:#1d4ed8;
+      --postit:#fff088; --postit-shadow:rgba(0,0,0,.4); --card:#161a22;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0; font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; background:var(--bg); color:var(--ink)}
+
+    /* Bandeau post-it */
+    .banner{position:sticky; top:0; z-index:50; background:linear-gradient(180deg, rgba(255,255,255,.95), rgba(255,255,255,.85)); backdrop-filter: blur(6px); border-bottom:1px solid #eee}
+    .dark .banner{background:linear-gradient(180deg, rgba(22,26,34,.95), rgba(22,26,34,.85)); border-bottom-color:#2a2f3a}
+    .banner-inner{max-width:1100px; margin:0 auto; padding:10px 16px; display:flex; gap:12px; align-items:center; overflow-x:auto}
+    .banner h1{font-size:18px; margin:0 8px 0 0; white-space:nowrap}
+    .order-note{flex:0 0 auto; width:220px; min-height:132px; padding:12px 12px 16px; position:relative; background:var(--postit); box-shadow:0 8px 18px -8px var(--postit-shadow), inset 0 1px 0 rgba(255,255,255,.6); border:1px solid rgba(0,0,0,.06); transform: rotate(var(--r,-1.5deg)); transform-origin: top left; clip-path: polygon(0 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%)}
+    .order-note::after{content:""; position:absolute; right:0; bottom:0; width:0; height:0; border-width:16px 16px 0 0; border-style:solid; border-color: rgba(0,0,0,.08) transparent transparent transparent}
+    .order-note:nth-child(odd){--r:1.2deg}
+    .order-note header{display:flex; gap:6px; align-items:center; margin-bottom:6px}
+    .badge{font-size:12px; padding:2px 6px; border-radius:999px; background:var(--warn); color:#fff}
+    .badge[data-status="prête"]{background:var(--ok)}
+    .badge[data-status="livrée"]{background:#888}
+    .order-note h4{margin:0; font-size:14px; font-weight:700}
+    .order-note p{margin:.2em 0; font-size:13px}
+    .note-actions{position:absolute; right:8px; top:8px; display:flex; gap:6px}
+    .icon-btn{border:0; background:rgba(0,0,0,.08); width:26px; height:26px; border-radius:6px; cursor:pointer}
+    .icon-btn:hover{background:rgba(0,0,0,.18)}
+    .dark .icon-btn{background:#272b36}
+    .dark .icon-btn:hover{background:#323848}
+
+    /* Mise en page */
+    .wrap{max-width:1100px; margin:18px auto; padding:0 16px}
+    .grid{display:grid; grid-template-columns: 1.2fr .8fr; gap:18px}
+    @media (max-width: 920px){.grid{grid-template-columns:1fr}}
+
+    .card{background:var(--card); border:1px solid #eee; border-radius:14px; box-shadow:0 10px 20px -16px rgba(0,0,0,.25)}
+    .dark .card{background:var(--card); border-color:#2a2f3a}
+    .card header{padding:14px 16px; border-bottom:1px solid #f0f0f0; display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap}
+    .card header h2{margin:0; font-size:18px}
+    .card .body{padding:16px}
+
+    /* Tabs */
+    .tabs{display:flex; gap:8px; margin:8px 0 14px}
+    .tab{border:1px solid #ddd; background:#fff; padding:8px 12px; border-radius:999px; cursor:pointer; font-weight:700}
+    .tab.active{border-color:var(--brand); box-shadow:0 0 0 2px rgba(230,57,70,.12)}
+    .dark .tab{background:#111827; color:#e5e7eb; border-color:#2a2f3a}
+
+    /* Menu grid */
+    .menu-grid{display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:14px}
+    @media (max-width: 900px){.menu-grid{grid-template-columns: repeat(2, minmax(0,1fr))}}
+    @media (max-width: 520px){.menu-grid{grid-template-columns: 1fr}}
+    .item-card{position:relative; background:#fff; border:1px solid #eee; border-radius:14px; padding:8px; display:flex; gap:12px; align-items:flex-start}
+    .dark .item-card{background:var(--card); border-color:#2a2f3a}
+    .item-illus{font-size:34px; line-height:1; width:46px; height:46px; display:grid; place-items:center}
+    .item-info h4{margin:0 0 6px; font-size:15px}
+    .quick-actions{display:flex; gap:6px; margin-top:4px; flex-direction:column}
+    .chip-btn{border:1px solid #ddd; background:#fff; padding:6px 10px; border-radius:999px; cursor:pointer; font-weight:600}
+    .chip-btn:hover{border-color:#bbb}
+    .dark .chip-btn{background:#111827; color:#e5e7eb; border-color:#2a2f3a}
+    .chip-btn.emph{background:#fde8e8; border-color:#e63946; color:#b91c1c}
+    .dark .chip-btn.emph{background:#3a1a1a; border-color:#e63946; color:#f8d7da}
+
+    .btn{appearance:none; border:0; background:var(--brand); color:#fff; padding:10px 14px; border-radius:12px; cursor:pointer; font-weight:700}
+    .btn.secondary{background:var(--accent)}
+    .btn.ghost{background:#f5f5f5; color:#333}
+    .dark .btn.ghost{background:#1f2937; color:#e5e7eb}
+
+    input[type="time"], select{font:inherit}
+    .dark select, .dark input, .dark textarea{background:#111827; color:#e5e7eb; border-color:#2a2f3a}
+
+    table{width:100%; border-collapse:collapse}
+    th, td{text-align:left; padding:10px; border-bottom:1px solid #f1f1f1}
+    .dark table th, .dark table td{border-bottom-color:#2a2f3a}
+    tfoot td{font-weight:800}
+    .help{font-size:13px; opacity:.8}
+
+    /* Healthbar */
+    .healthbar{position:fixed; left:50%; transform:translateX(-50%); top:10px; z-index:2000; padding:8px 12px; border-radius:10px; border:1px solid #ef4444; background:#fee2e2; color:#7f1d1d; box-shadow:0 8px 18px -8px rgba(0,0,0,.25)}
+    .healthbar.ok{border-color:#22c55e; background:#dcfce7; color:#166534}
+    .dark .healthbar{background:#3b0d0d; color:#fecaca; border-color:#ef4444}
+    .dark .healthbar.ok{background:#052e16; color:#bbf7d0; border-color:#22c55e}
+
+    /* Stats UI */
+    .stats-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:12px}
+    .stats-card{background:var(--card);border:1px solid #eee;border-radius:12px;padding:12px}
+    .dark .stats-card{border-color:#2a2f3a}
+    .stats-card h4{margin:0 0 6px;font-size:13px;opacity:.8}
+    .stats-card .v{font-size:18px;font-weight:800}
+    .stats-table{margin-top:12px}
+    .stats-table .bar{height:10px;border-radius:999px;background:#e5e7eb}
+    .dark .stats-table .bar{background:#1f2937}
+    .stats-table .bar > span{display:block;height:100%;border-radius:999px;background:var(--accent)}
+
+    /* Liseré rouge (champs requis vides) + shake */
+    .input-invalid{border-color:#ef4444 !important; box-shadow:0 0 0 2px rgba(239,68,68,.12)}
+    @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+    .shake{animation:shake .28s ease}
+
+    /* ===== Modals ===== */
+    .modal{position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.25); z-index:1000}
+    .modal.open{ display:flex !important; }
+    .modal-panel{background:#fff; width:min(780px, 94vw); max-height:90vh; border-radius:16px; border:1px solid #eee; box-shadow:0 30px 50px -30px rgba(0,0,0,.45); overflow:auto}
+    .dark .modal-panel{ background:var(--card); border-color:#2a2f3a}
+    .modal header{position:sticky; top:0; padding:14px 16px; border-bottom:1px solid #f0f0f0; display:flex; justify-content:space-between; align-items:center; background:inherit; z-index:1}
+    .modal .body{padding:16px}
+    .row{ display:grid; grid-template-columns:1fr 1fr; gap:12px }
+    @media (max-width:640px){ .row{ grid-template-columns:1fr } }
+    .chips{display:flex; flex-wrap:wrap; gap:8px}
+    .chip{display:inline-flex; align-items:center; gap:6px; padding:8px 10px; border:1px solid #ddd; border-radius:999px; background:#fff; cursor:pointer}
+    .chip input{accent-color:var(--brand)}
+    .dark .chip{background:#111827; color:#e5e7eb; border-color:#2a2f3a}
+    textarea.json-editor{width:100%; min-height:360px; font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:13px; padding:12px; border:1px solid #ddd; border-radius:12px}
+    .dark textarea.json-editor{background:#111827; color:#e5e7eb; border-color:#2a2f3a}
+  </style>
+</head>
+<body>
+  <!-- Bandeau post-it -->
+  <div class="banner" id="banner">
+    <div class="banner-inner">
+      <h1>🗒️ Commandes enregistrées</h1>
+      <select id="filterSlot" style="padding:6px 10px; border-radius:999px; border:1px solid #ddd; background:white; font-size:13px; flex:0 0 auto">
+        <option value="">Tous les créneaux</option>
+      </select>
+      <div id="savedOrders" style="display:flex; gap:12px"></div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="grid">
+      <!-- Menu visuel -->
+      <section class="card" aria-labelledby="menu-title">
+        <header>
+          <h2 id="menu-title">Menu – À emporter</h2>
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap">
+            <div class="tabs">
+              <button class="tab active" data-cat="pizzas">🍕 Pizzas</button>
+              <button class="tab" data-cat="boissons">🥤 Boissons</button>
+              <button class="tab" data-cat="desserts">🍰 Desserts</button>
+            </div>
+            <input id="client" type="text" placeholder="Nom du client (obligatoire)" style="padding:10px 12px; border:1px solid #ddd; border-radius:10px; background:white"/>
+            <input id="phone" type="tel" placeholder="Téléphone (obligatoire)" style="padding:10px 12px; border:1px solid #ddd; border-radius:10px; background:white; width:150px"/>
+            <select id="slot" title="Créneau de retrait" style="padding:10px 12px; border:1px solid #ddd; border-radius:10px">
+              <option value="">Créneau (18:30–23:00)</option>
+            </select>
+
+            <!-- Menus déroulants suggestion client / téléphone -->
+            <select id="nameSuggestions" style="display:none; padding:6px 8px; border-radius:8px; border:1px solid #ddd; background:white; font-size:13px;">
+              <option value="">Sélectionner un client…</option>
+            </select>
+            <select id="phoneSuggestions" style="display:none; padding:6px 8px; border-radius:8px; border:1px solid #ddd; background:white; font-size:13px;">
+              <option value="">Sélectionner un numéro…</option>
+            </select>
+
+            <button class="btn ghost" id="resetOrder">Nouvelle</button>
+            <button class="btn secondary" id="saveOrder">Enregistrer la commande</button>
+            <button class="btn ghost" id="toggleTheme" title="Mode sombre">🌙</button>
+            <button class="btn" id="openAdmin">Admin</button>
+            <button class="btn ghost" id="openStats" title="Statistiques du jour">Stats</button>
+            <button class="btn ghost" id="openArchive" title="Commandes livrées">Historique</button>
+          </div>
+        </header>
+        <div class="body">
+          <div class="menu-grid" id="menuGrid"></div>
+        </div>
+      </section>
+
+      <!-- Panier -->
+      <aside class="card">
+        <header><h2>Panier</h2></header>
+        <div class="body">
+          <div class="card" style="border:1px dashed #ddd; box-shadow:none">
+            <div class="body" style="padding:0">
+              <table id="orderTable" aria-label="Détails de la commande">
+                <thead>
+                  <tr><th>Article</th><th>Qté</th><th>Prix</th><th></th></tr>
+                </thead>
+                <tbody></tbody>
+                <tfoot>
+                  <tr><td colspan="2">Total</td><td id="grandTotal" style="font-size:18px">0,00€</td><td></td></tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+          <p class="help">Commande par défaut : <strong>à emporter</strong>.</p>
+          <button class="btn secondary" id="exportJSON">Exporter les commandes (JSON)</button>
+          <button class="btn ghost" id="exportCSV">Exporter (CSV)</button>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- Modal configurateur -->
+  <div class="modal" id="configModal" aria-hidden="true" role="dialog" aria-labelledby="cfgTitle">
+    <div class="modal-panel">
+      <header>
+        <h3 id="cfgTitle" style="margin:0">Configurer votre pizza</h3>
+        <button class="icon-btn" id="closeCfg" aria-label="Fermer">✕</button>
+      </header>
+      <div class="body">
+        <div id="cfgDesc" class="help" style="margin-bottom:10px"></div>
+        <div class="row">
+          <div>
+            <label>Taille</label>
+            <div class="quick-actions">
+              <button class="chip-btn emph" data-size="grande">Grande</button>
+              <button class="chip-btn" data-size="petite">Petite</button>
+            </div>
+          </div>
+          <div>
+            <label>Quantité</label>
+            <div style="display:flex; gap:8px; align-items:center">
+              <button class="chip-btn" id="qtyMinus">−</button>
+              <input type="number" id="cfgQty" min="1" value="1" style="width:80px; padding:8px 10px; border:1px solid #ddd; border-radius:10px"/>
+              <button class="chip-btn" id="qtyPlus">+</button>
+            </div>
+          </div>
+        </div>
+        <div style="height:10px"></div>
+        <label>Suppléments (<span id="topPriceLabel">1,50€</span> chacun)</label>
+        <div class="chips" id="cfgToppings"></div>
+        <div style="height:10px"></div>
+        <label for="notes">Notes</label>
+        <textarea id="notes" placeholder="Sans oignons, bien cuite…" style="width:100%; min-height:70px; padding:10px 12px; border:1px solid:#ddd; border-radius:10px"></textarea>
+        <div style="display:flex; gap:8px; align-items:center; justify-content:space-between; margin-top:12px">
+          <div class="help" id="cfgPrice"></div>
+          <div style="display:flex; gap:8px">
+            <button class="btn ghost" id="cancelCfg">Annuler</button>
+            <button class="btn" id="addCfg">Ajouter au panier</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Admin -->
+  <div class="modal" id="adminModal" aria-hidden="true" role="dialog" aria-labelledby="adminTitle">
+    <div class="modal-panel">
+      <header>
+        <h3 id="adminTitle" style="margin:0">Administration du catalogue</h3>
+        <button class="icon-btn" id="closeAdmin" aria-label="Fermer">✕</button>
+      </header>
+      <div class="body">
+        <p class="help">Modifie le JSON puis clique sur « Enregistrer le catalogue ». Tu peux aussi exporter ou réinitialiser aux valeurs par défaut.</p>
+
+        <!-- Toggle déverrouillage créneaux -->
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" id="unlockToggle" />
+            <span>Déverrouiller les créneaux (autoriser créneaux complets/passés)</span>
+          </label>
+        </div>
+
+        <textarea id="adminJson" class="json-editor" spellcheck="false"></textarea>
+        <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap">
+          <button class="btn" id="saveCatalog">Enregistrer le catalogue</button>
+          <button class="btn ghost" id="exportCatalog">Exporter</button>
+          <button class="btn secondary" id="resetCatalog">Réinitialiser</button>
+        </div>
+
+        <!-- Fichier clients -->
+        <h4 style="margin:18px 0 6px">Fichier clients</h4>
+        <p class="help">Liste des clients connus (nom, téléphone, nombre de commandes, dernière commande).</p>
+        <div style="display:flex; gap:8px; margin-bottom:8px; flex-wrap:wrap">
+          <button class="btn ghost" id="exportClients">Exporter les clients (CSV)</button>
+          <button class="btn" id="refreshClients">Actualiser</button>
+          <button class="btn secondary" id="clearClients">Vider le fichier clients</button>
+        </div>
+        <div id="clientsAdmin" class="help"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Stats -->
+  <div class="modal" id="statsModal" aria-hidden="true" role="dialog" aria-labelledby="statsTitle">
+    <div class="modal-panel">
+      <header>
+        <h3 id="statsTitle" style="margin:0">Statistiques du jour</h3>
+        <button class="icon-btn" id="closeStats" aria-label="Fermer">✕</button>
+      </header>
+      <div class="body">
+        <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap">
+          <button class="icon-btn" id="statsPrev" title="Jour précédent">◀️</button>
+          <input type="date" id="statsDate" />
+          <button class="icon-btn" id="statsNext" title="Jour suivant">▶️</button>
+          <button class="btn ghost" id="statsToday" title="Revenir à aujourd’hui">Aujourd’hui</button>
+        </div>
+        <div id="statsContent" class="help"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Historique -->
+  <div class="modal" id="archiveModal" aria-hidden="true" role="dialog" aria-labelledby="archiveTitle">
+    <div class="modal-panel">
+      <header>
+        <h3 id="archiveTitle" style="margin:0">Historique – commandes livrées</h3>
+        <button class="icon-btn" id="closeArchive" aria-label="Fermer">✕</button>
+      </header>
+      <div class="body">
+        <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap">
+          <input type="date" id="archiveDateFilter" />
+          <button class="btn ghost" id="archiveToday" title="Aujourd’hui">Aujourd’hui</button>
+          <span class="help" id="archiveCount"></span>
+          <div style="flex:1"></div>
+          <button class="btn" id="clearArchive" title="Supprimer définitivement l’historique">Vider l’historique</button>
+        </div>
+        <div id="archiveContent" class="help"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+
+// Polyfill structuredClone pour anciens iPad / Safari
+    if (typeof structuredClone !== 'function') {
+      window.structuredClone = (obj) => JSON.parse(JSON.stringify(obj));
+    }
+
+    /* ===== Helpers ===== */
+    if(!(window.crypto && 'randomUUID' in window.crypto)){
+      window.crypto = window.crypto || {};
+      window.crypto.randomUUID = function(){
+        const arr = new Uint8Array(16);
+        (window.crypto.getRandomValues? window.crypto.getRandomValues(arr) : arr.forEach((_,i)=>arr[i]=Math.floor(Math.random()*256)));
+        const s = Array.from(arr).map(b=>b.toString(16).padStart(2,'0')).join('');
+        return `${s.slice(0,8)}-${s.slice(8,12)}-${s.slice(12,16)}-${s.slice(16,20)}-${s.slice(20)}`;
+      };
+    }
+    const euro = (n)=> n.toLocaleString('fr-FR',{style:'currency',currency:'EUR'});
+    const byId = (id)=> document.getElementById(id);
+
+    let HEALTH_DEFAULT_MS = 4000;
+    function showHealth(message, type='error', ms = HEALTH_DEFAULT_MS){
+      let el = document.getElementById('healthbar');
+      if(!el){
+        el = document.createElement('div');
+        el.id = 'healthbar';
+        el.className = 'healthbar';
+        document.body.appendChild(el);
+      }
+      el.textContent = message;
+      el.className = type==='ok' ? 'healthbar ok' : 'healthbar';
+      el.style.display = 'block';
+      clearTimeout(el._t);
+      el._t = setTimeout(()=>{ el.style.display='none'; }, ms);
+    }
+
+    function getPreferredTheme(){
+      const s = localStorage.getItem('pizzeria.theme');
+      if(s==='dark' || s==='light') return s;
+      return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+    }
+    function applyTheme(mode, persist){
+      document.documentElement.classList.toggle('dark', mode==='dark');
+      if(persist) localStorage.setItem('pizzeria.theme', mode);
+      const t = byId('toggleTheme');
+      if(t){ t.textContent = (mode==='dark') ? '☀️' : '🌙'; t.title = (mode==='dark') ? 'Mode clair' : 'Mode sombre'; }
+    }
+
+    /* ===== Tickets ===== */
+    function todayKey(){ const d=new Date(); const y=d.getFullYear(); const m=String(d.getMonth()+1).padStart(2,'0'); const day=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${day}`; }
+    function loadTicketState(){ const date=localStorage.getItem('pizzeria.ticketDate'); const seq=parseInt(localStorage.getItem('pizzeria.ticketSeq')||'0',10); return {date, seq: isNaN(seq)?0:seq}; }
+    function nextTicket(){ const today=todayKey(); let {date,seq}=loadTicketState(); if(date!==today){ date=today; seq=0; } seq+=1; localStorage.setItem('pizzeria.ticketDate', date); localStorage.setItem('pizzeria.ticketSeq', String(seq)); return 'T-'+String(seq).padStart(2,'0'); }
+
+    /* ===== Catalogue ===== */
+    const DEFAULT_CATALOG = {
+      pizzas: [
+        { id:'margherita', emoji:'🍅', name:'Margherita', desc:'Tomate, mozzarella, basilic', base:{petite:7.0, grande:10.5} },
+        { id:'regina', emoji:'👑', name:'Reine', desc:'Jambon, champignons, mozzarella', base:{petite:7.0, grande:12} },
+        { id:'4from', emoji:'🧀', name:'4 Fromages', desc:'Mozzarella, gorgonzola, emmental, chèvre', base:{petite:7.0, grande:12.5} },
+        { id:'pep', emoji:'🌶️', name:'Pepperoni', desc:'Tomate, mozzarella, pepperoni', base:{petite:7.0, grande:12.5} },
+        { id:'veg', emoji:'🥦', name:'Végétarienne', desc:'Légumes de saison, mozzarella', base:{petite:7.0, grande:12.2} }
+      ],
+      drinks: [
+        { id:'cola33', emoji:'🥤', name:'Coca-Cola 33cl', price:2.5 },
+        { id:'cola15', emoji:'🥤', name:'Coca-Cola 1.5L', price:3.5 },
+        { id:'eau50', emoji:'💧', name:'Eau 50cl', price:1.5 },
+        { id:'perrier50', emoji:'💧', name:'Perrier 50cl', price:2.0 },
+        { id:'ice-tea33', emoji:'🥤', name:'Ice Tea 33cl', price:2.5 }
+      ],
+      desserts: [
+        { id:'tiramisu', emoji:'🍰', name:'Tiramisu', price:3.5 },
+        { id:'fondant', emoji:'🍫', name:'Fondant chocolat', price:3.8 },
+        { id:'glace', emoji:'🍨', name:'Glace (2 boules)', price:3.2 }
+      ],
+      toppings: ['Olives','Oignons','Poivrons','Anchois','Champignons','Chorizo','Roquette','Burrata'],
+      toppingPrice: 1.5
+    };
+    let CATALOG = structuredClone(DEFAULT_CATALOG);
+    function loadCatalog(){ try{ const raw = localStorage.getItem('pizzeria.catalog'); if(raw){ CATALOG = JSON.parse(raw); } }catch(e){ console.warn('Catalog parse error', e); } }
+    function saveCatalog(){ localStorage.setItem('pizzeria.catalog', JSON.stringify(CATALOG)); }
+
+    /* ===== États ===== */
+    let currentItems = [];
+    let savedOrders = [];
+    let archivedOrders = [];
+    let cfg = { pizzaId:null, size:'petite', qty:1, toppings:[] };
+    let currentCategory = 'pizzas';
+    let editingOrderId = null;
+
+    // Fichier clients (local)
+    let clients = [];
+
+    // Mode déverrouillage des créneaux (stocké)
+    let unlockSlots = JSON.parse(localStorage.getItem('pizzeria.unlock') || 'false');
+
+    /* ===== Persistance commandes / archives ===== */
+    function saveOrders(){ localStorage.setItem('pizzeria.orders', JSON.stringify(savedOrders)); }
+    function loadOrders(){ savedOrders = JSON.parse(localStorage.getItem('pizzeria.orders')||'[]'); renderSavedOrders(); updateSlotsCapacity(); }
+    function saveArchived(){ localStorage.setItem('pizzeria.archived', JSON.stringify(archivedOrders)); }
+    function loadArchived(){ archivedOrders = JSON.parse(localStorage.getItem('pizzeria.archived')||'[]'); }
+
+    // Sauvegarde panier
+    function saveCart(){ localStorage.setItem('pizzeria.cart', JSON.stringify(currentItems)); }
+    function loadCart(){ try{ const raw=localStorage.getItem('pizzeria.cart'); if(raw){ currentItems=JSON.parse(raw)||[]; } }catch(_){ currentItems=[]; } }
+
+    // Clients (localStorage)
+    function loadClients(){
+      try{
+        const raw = localStorage.getItem('pizzeria.clients');
+        const arr = raw ? JSON.parse(raw) : [];
+        clients = Array.isArray(arr) ? arr : [];
+      }catch(_){
+        clients = [];
+      }
+    }
+    function saveClients(){
+      localStorage.setItem('pizzeria.clients', JSON.stringify(clients));
+    }
+    function normalizeName(s){ return (s||'').trim().toLowerCase(); }
+    function normalizePhone(s){ return (s||'').replace(/\D/g,''); }
+
+    function rememberClient(name, phone){
+      const n = (name||'').trim();
+      const p = (phone||'').trim();
+      if(!n || !p) return;
+
+      const now = new Date().toISOString();
+      const normPhone = normalizePhone(p);
+      const normName  = normalizeName(n);
+
+      let existing = clients.find(c => normalizeName(c.name) === normName);
+      if(!existing){
+        existing = clients.find(c => normalizePhone(c.phone) === normPhone);
+      }
+
+      if(existing){
+        existing.name = n;
+        existing.phone = p;
+        existing.lastOrderAt = now;
+        existing.count = (existing.count||0)+1;
+      }else{
+        clients.push({
+          id: crypto.randomUUID(),
+          name: n,
+          phone: p,
+          createdAt: now,
+          lastOrderAt: now,
+          count: 1
+        });
+      }
+      saveClients();
+      const admin = byId('adminModal');
+      if(admin && admin.classList.contains('open')){
+        renderClientsAdmin();
+      }
+    }
+
+    /* ===== Créneaux / Capacité ===== */
+    const SLOT_CAP = 4;
+    function countPizzasIn(items){
+      return (items || []).reduce((s, l) => {
+        const isPizza = !!(l.pizzaId || l.kind === 'pizza');
+        return s + (isPizza ? (Number(l.qty) || 0) : 0);
+      }, 0);
+    }
+    function pizzasBookedForSlot(slot, excludeId){
+      return savedOrders
+        .filter(o=>o.slot===slot && o.id !== excludeId)
+        .reduce((s,o)=> s + countPizzasIn(o.items), 0);
+    }
+    function pizzasInCart(){ return countPizzasIn(currentItems); }
+
+    function buildSlots(){
+      const sel = byId('slot');
+      const previous = sel.value;
+      sel.innerHTML = '<option value="">Créneau (18:30–23:00)</option>';
+      const now = new Date();
+      const start = new Date(now); start.setHours(18,30,0,0);
+      const end = new Date(now); end.setHours(23,0,0,0);
+      for(let t = new Date(start); t <= end; t = new Date(t.getTime()+10*60000)){
+        const label = t.toLocaleTimeString('fr-FR',{hour:'2-digit', minute:'2-digit'});
+        const booked = pizzasBookedForSlot(label, editingOrderId || undefined);
+        const full = booked >= SLOT_CAP;
+        const past = t.getTime() < now.getTime();
+        const opt = document.createElement('option');
+        opt.value = label;
+        let suffix = ` (${booked}/${SLOT_CAP} pizzas)`;
+        if(full) suffix = ` (${booked}/${SLOT_CAP} pizzas – complet)`;
+        if(past) suffix += ' — passé';
+        const disabled = !unlockSlots && (full || past);
+        opt.disabled = disabled;
+        opt.textContent = label + suffix + (unlockSlots && (full || past) ? ' — déverrouillé' : '');
+        sel.appendChild(opt);
+      }
+      if(previous){ sel.value = previous; }
+    }
+    function updateSlotsCapacity(){ buildSlots(); }
+
+    /* ===== Menu ===== */
+    function renderMenu(){
+      const grid = byId('menuGrid'); grid.innerHTML='';
+      if(currentCategory==='pizzas'){
+        CATALOG.pizzas.forEach(p=> grid.appendChild(pizzaCard(p)) );
+      } else if(currentCategory==='boissons'){
+        CATALOG.drinks.forEach(d=> grid.appendChild(simpleItemCard(d, 'drink')) );
+      } else if(currentCategory==='desserts'){
+        CATALOG.desserts.forEach(d=> grid.appendChild(simpleItemCard(d, 'dessert')) );
+      }
+    }
+
+    function pizzaCard(p){
+      const card = document.createElement('article');
+      card.className = 'item-card';
+      card.style.padding = '8px';
+      card.innerHTML = `
+        <div class="item-illus">🍕</div>
+        <div class="item-info" style="flex:1">
+          <h4 style="margin-bottom:6px; font-size:15px">${p.name}</h4>
+          <div class="quick-actions" style="margin-top:4px; flex-direction:column; gap:6px">
+            <div style="display:flex; gap:6px; flex-wrap:wrap">
+              <button class="chip-btn emph" data-id="${p.id}" data-size="grande">Grande</button>
+            </div>
+            <div style="display:flex; gap:6px; flex-wrap:wrap">
+              <button class="chip-btn" data-id="${p.id}" data-size="petite">Petite</button>
+              <button class="chip-btn" data-id="${p.id}" data-size="cfg">Supp…</button>
+            </div>
+          </div>
+        </div>`;
+      card.querySelectorAll('.chip-btn').forEach(btn => {
+        btn.addEventListener('click', e => {
+          const id = e.currentTarget.getAttribute('data-id');
+          const size = e.currentTarget.getAttribute('data-size');
+          if (size === 'cfg') { openConfigurator(id); return; }
+          if (!size) return;
+          quickAddPizza(id, size);
+        });
+      });
+      return card;
+    }
+
+    function simpleItemCard(item, kind){
+      const card = document.createElement('article'); card.className='item-card';
+      card.innerHTML = `
+        <div class="item-illus">${item.emoji||'🧁'}</div>
+        <div class="item-info" style="flex:1">
+          <h4>${item.name}</h4>
+          <div class="quick-actions">
+            <button class="chip-btn" data-id="${item.id}" data-kind="${kind}">Ajouter</button>
+          </div>
+        </div>`;
+      card.querySelector('button').addEventListener('click', ()=> quickAddSimple(item.id, kind) );
+      return card;
+    }
+
+    function addOrIncrement(key, create){
+      const found = currentItems.find(l=> l.key===key);
+      if(found){ found.qty += 1; renderOrderTable(); return; }
+      const line = create(); line.key = key; currentItems.push(line); renderOrderTable();
+    }
+
+    function quickAddPizza(pizzaId, size){
+      const p = CATALOG.pizzas.find(x=>x.id===pizzaId); if(!p) return;
+      const key = `pizza:${pizzaId}:${size}:none`;
+      addOrIncrement(key, ()=>({
+        id: crypto.randomUUID(),
+        kind: 'pizza',
+        pizzaId,
+        name: p.name,
+        size,
+        qty: 1,
+        toppings: [],
+        unitPrice: p.base[size]
+      }));
+    }
+
+    function quickAddSimple(id, kind){
+      if(kind==='drink'){
+        const d = CATALOG.drinks.find(x=>x.id===id); if(!d) return;
+        const key = `drink:${id}`;
+        addOrIncrement(key, ()=>({
+          id: crypto.randomUUID(),
+          kind: 'drink',
+          name: d.name,
+          size: '',
+          qty: 1,
+          toppings: [],
+          unitPrice: d.price
+        }));
+      } else if(kind==='dessert'){
+        const ds = CATALOG.desserts.find(x=>x.id===id); if(!ds) return;
+        const key = `dessert:${id}`;
+        addOrIncrement(key, ()=>({
+          id: crypto.randomUUID(),
+          kind: 'dessert',
+          name: ds.name,
+          size: '',
+          qty: 1,
+          toppings: [],
+          unitPrice: ds.price
+        }));
+      }
+    }
+
+    /* ===== Configurateur ===== */
+    function openConfigurator(pizzaId){
+      cfg = { pizzaId, size:'grande', qty:1, toppings:[] };
+      const p = CATALOG.pizzas.find(x=>x.id===pizzaId);
+      byId('cfgTitle').textContent = `Configurer : ${p.name}`;
+      byId('cfgDesc').textContent = p.desc || '';
+      byId('cfgQty').value = 1; byId('notes').value='';
+      const area = byId('cfgToppings'); area.innerHTML='';
+      byId('topPriceLabel').textContent = euro(CATALOG.toppingPrice);
+      CATALOG.toppings.forEach((name,i)=>{
+        const id = 'cfg_top_'+i;
+        const label = document.createElement('label');
+        label.className='chip';
+        label.innerHTML = `<input type="checkbox" value="${name}" id="${id}"> ${name}`;
+        area.appendChild(label);
+        label.querySelector('input').addEventListener('change', ()=>{
+          const set = new Set(cfg.toppings);
+          if(label.querySelector('input').checked) set.add(name); else set.delete(name);
+          cfg.toppings = [...set];
+          updateCfgPrice();
+        });
+      });
+      byId('configModal').classList.add('open');
+      updateCfgPrice();
+    }
+    function updateCfgPrice(){
+      const p = CATALOG.pizzas.find(x=>x.id===cfg.pizzaId); if(!p) return;
+      const base = p.base[cfg.size] || 0;
+      const price = (base + cfg.toppings.length * (CATALOG.toppingPrice||0)) * cfg.qty;
+      byId('cfgPrice').textContent = `Prix: ${euro(price)}`;
+    }
+
+    /* ===== Panier ===== */
+    function renderOrderTable(){
+      const tb = byId('orderTable').querySelector('tbody'); tb.innerHTML='';
+      let total = 0;
+      currentItems.forEach(line=>{
+        const lineTotal = line.unitPrice * line.qty; total += lineTotal;
+        const tr = document.createElement('tr');
+        const tops = (line.toppings && line.toppings.length) ? ' + ' + line.toppings.join(', ') : '';
+        tr.innerHTML = `
+          <td>${line.name}${line.size ? ' ('+line.size+')' : ''}${tops}<div class="help">${euro(line.unitPrice)} / unité</div></td>
+          <td>
+            <div style="display:flex; gap:6px; align-items:center">
+              <button class="icon-btn" title="Moins" aria-label="Moins" onclick="decItem('${line.id}')">−</button>
+              <span aria-live="polite">${line.qty}</span>
+              <button class="icon-btn" title="Plus" aria-label="Plus" onclick="incItem('${line.id}')">+</button>
+            </div>
+          </td>
+          <td>${euro(lineTotal)}</td>
+          <td>
+            <button class="icon-btn" title="Dupliquer" aria-label="Dupliquer" onclick="dupItem('${line.id}')">⎘</button>
+            <button class="icon-btn" title="Supprimer" aria-label="Supprimer" onclick="removeItem('${line.id}')">✕</button>
+          </td>`;
+        tb.appendChild(tr);
+      });
+      byId('grandTotal').textContent = euro(total);
+      saveCart();
+      updateSlotsCapacity();
+    }
+    function removeItem(id){ currentItems = currentItems.filter(l=>l.id!==id); renderOrderTable(); }
+    function incItem(id){ const it=currentItems.find(l=>l.id===id); if(!it) return; it.qty+=1; renderOrderTable(); }
+    function decItem(id){ const it=currentItems.find(l=>l.id===id); if(!it) return; it.qty-=1; if(it.qty<=0){ removeItem(id); } else { renderOrderTable(); } }
+    function dupItem(id){ const it=currentItems.find(l=>l.id===id); if(!it) return; const copy={...structuredClone(it), id: crypto.randomUUID()}; currentItems.push(copy); renderOrderTable(); }
+
+    function resetOrder(){
+      currentItems=[];
+      byId('client').value='';
+      byId('phone').value='';
+      byId('slot').value='';
+      renderOrderTable();
+      saveCart();
+      editingOrderId = null;
+      const btn = byId('saveOrder');
+      if(btn){ btn.textContent = 'Enregistrer la commande'; }
+      updateFieldHints();
+    }
+
+    /* ===== Indices visuels ===== */
+    function updateFieldHints(){
+      const clientEl = byId('client');
+      const slotEl = byId('slot');
+      const phoneEl = byId('phone');
+      if(!clientEl || !slotEl || !phoneEl) return;
+      const clientEmpty = clientEl.value.trim().length === 0;
+      const slotEmpty   = slotEl.value.trim().length === 0;
+      const phoneEmpty  = phoneEl.value.trim().length === 0;
+      clientEl.classList.toggle('input-invalid', clientEmpty);
+      slotEl.classList.toggle('input-invalid',   slotEmpty);
+      phoneEl.classList.toggle('input-invalid',  phoneEmpty);
+    }
+
+    /* ===== Auto-complétion client / téléphone ===== */
+    function handleClientChange(){
+      const nameInput = byId('client');
+      const phoneInput = byId('phone');
+      const sel = byId('nameSuggestions');
+      const name = nameInput.value.trim();
+
+      if(!name){
+        if(sel) sel.style.display='none';
+        phoneInput.value = '';
+        updateFieldHints();
+        return;
+      }
+
+      const norm = normalizeName(name);
+      const matches = clients.filter(c => normalizeName(c.name).startsWith(norm));
+
+      if(matches.length === 1){
+        phoneInput.value = matches[0].phone || '';
+        if(sel) sel.style.display='none';
+      } else if(matches.length > 1){
+        if(!sel) return;
+        sel.innerHTML = '<option value="">Sélectionner un client…</option>';
+        matches.forEach((c,i)=>{
+          const opt = document.createElement('option');
+          opt.value = String(i);
+          opt.textContent = `${c.name} • ${c.phone} (${c.count||1} cmd)`;
+          sel.appendChild(opt);
+        });
+        sel.style.display='inline-block';
+        sel.onchange = ()=>{
+          const idx = parseInt(sel.value,10);
+          if(!isNaN(idx) && matches[idx]){
+            const c = matches[idx];
+            nameInput.value = c.name;
+            phoneInput.value = c.phone;
+            sel.style.display='none';
+            updateFieldHints();
+          }
+        };
+      } else {
+        if(sel) sel.style.display='none';
+        phoneInput.value = '';
+      }
+
+      updateFieldHints();
+    }
+
+    function handlePhoneChange(){
+      const nameInput = byId('client');
+      const phoneInput = byId('phone');
+      const sel = byId('phoneSuggestions');
+      const phone = phoneInput.value;
+      const norm = normalizePhone(phone);
+      if(!norm){
+        if(sel) sel.style.display='none';
+        updateFieldHints();
+        return;
+      }
+      const matches = clients.filter(c => normalizePhone(c.phone).startsWith(norm));
+
+      if(matches.length === 1){
+        const c = matches[0];
+        const currentName = nameInput.value.trim();
+        // Ici on ne change le nom QUE s'il est vide ou déjà identique au client trouvé
+        if(!currentName || normalizeName(currentName) === normalizeName(c.name)){
+          nameInput.value = c.name;
+        }
+        if(sel) sel.style.display='none';
+      } else if(matches.length > 1){
+        if(!sel) return;
+        sel.innerHTML = '<option value="">Sélectionner un numéro…</option>';
+        matches.forEach((c,i)=>{
+          const opt = document.createElement('option');
+          opt.value = String(i);
+          opt.textContent = `${c.phone} • ${c.name} (${c.count||1} cmd)`;
+          sel.appendChild(opt);
+        });
+        sel.style.display='inline-block';
+        sel.onchange = ()=>{
+          const idx = parseInt(sel.value,10);
+          if(!isNaN(idx) && matches[idx]){
+            const c = matches[idx];
+            phoneInput.value = c.phone;
+            nameInput.value = c.name;
+            sel.style.display='none';
+            updateFieldHints();
+          }
+        };
+      } else {
+        if(sel) sel.style.display='none';
+      }
+      updateFieldHints();
+    }
+
+    /* ===== Enregistrement (localStorage) ===== */
+    function saveOrder(){
+      const clientEl = byId('client');
+      const slotEl = byId('slot');
+      const phoneEl = byId('phone');
+
+      const clientOk = clientEl.value.trim().length > 0;
+      const slotOk = slotEl.value.trim().length > 0;
+      const phoneOk = phoneEl.value.trim().length > 0;
+      const hasItems = currentItems.length > 0;
+
+      if(!(clientOk && slotOk && phoneOk && hasItems)){
+        [clientOk ? null : clientEl,
+         slotOk   ? null : slotEl,
+         phoneOk  ? null : phoneEl].filter(Boolean).forEach(el=>{
+          el.classList.add('shake'); setTimeout(()=>el.classList.remove('shake'), 300);
+        });
+        const missing = [];
+        if(!clientOk) missing.push('nom du client');
+        if(!phoneOk)  missing.push('numéro de téléphone');
+        if(!slotOk)   missing.push('créneau');
+        if(!hasItems) missing.push('au moins 1 article');
+        updateFieldHints();
+        showHealth('Complétez : ' + missing.join(', '), 'error', 2500);
+        return;
+      }
+
+      const slot = slotEl.value;
+      const booked = pizzasBookedForSlot(slot, editingOrderId || undefined);
+      const inCart = pizzasInCart();
+      if(!unlockSlots && (booked + inCart > SLOT_CAP)){
+        const remaining = Math.max(0, SLOT_CAP - booked);
+        alert(`Créneau ${slot} complet ou insuffisant : ${booked}/${SLOT_CAP} pizzas déjà réservées. Il reste ${remaining} place(s) pour des pizzas.`);
+        return;
+      }
+
+      const clientName = clientEl.value.trim();
+      const phone = (phoneEl.value || '').trim();
+      const total = currentItems.reduce((s,l)=> s + l.unitPrice*l.qty, 0);
+
+      rememberClient(clientName, phone);
+
+      if(editingOrderId){
+        const idx = savedOrders.findIndex(o=>o.id===editingOrderId);
+        if(idx !== -1){
+          const old = savedOrders[idx];
+          savedOrders[idx] = {
+            ...old,
+            client: clientName,
+            phone,
+            slot,
+            status: old.status || 'préparation',
+            items: structuredClone(currentItems),
+            total,
+            updatedAt: new Date().toISOString()
+          };
+          saveOrders(); renderSavedOrders(); updateSlotsCapacity();
+          showHealth('Commande mise à jour ✅', 'ok', 2000);
+        }
+        resetOrder();
+        return;
+      }
+
+      const ticket = nextTicket();
+      const order = {
+        id: crypto.randomUUID(),
+        at: new Date().toISOString(),
+        client: clientName,
+        phone,
+        type: 'à emporter',
+        slot,
+        status: 'préparation',
+        ticket,
+        items: structuredClone(currentItems),
+        total
+      };
+      savedOrders.unshift(order);
+      saveOrders(); renderSavedOrders(); updateSlotsCapacity();
+      resetOrder();
+    }
+
+    function startEdit(id){
+      const o = savedOrders.find(x=>x.id===id);
+      if(!o) return;
+      currentItems = structuredClone(o.items || []);
+      byId('client').value = o.client || '';
+      byId('phone').value = o.phone || '';
+      byId('slot').value = o.slot || '';
+      renderOrderTable();
+      editingOrderId = id;
+      const btn = byId('saveOrder');
+      if(btn){ btn.textContent = 'Mettre à jour la commande'; }
+      showHealth(`Mode édition : ${o.ticket ? o.ticket+' • ' : ''}${o.client}`, 'ok', 2000);
+      updateFieldHints();
+    }
+
+    /* ===== Post-it / Archive ===== */
+    const _drinkNames = ()=> new Set((CATALOG.drinks||[]).map(d=>d.name));
+    const _dessertNames = ()=> new Set((CATALOG.desserts||[]).map(d=>d.name));
+    function lineKind(line){
+      if(line.kind) return line.kind;
+      if(line.pizzaId) return 'pizza';
+      const dn=_drinkNames(), sn=_dessertNames();
+      if(dn.has(line.name)) return 'drink';
+      if(sn.has(line.name)) return 'dessert';
+      return 'other';
+    }
+    function formatLineHTML(line){
+      const base = `${line.qty}× ${line.name}${line.size ? ' ('+line.size+')' : ''}`;
+      const supp = (line.toppings && line.toppings.length)
+        ? `<div class="help" style="margin-top:2px">Supp: ${line.toppings.join(', ')}</div>`
+        : '';
+      const note = line.note && line.note.trim()
+        ? `<div class="help" style="margin-top:2px"><em>Note&nbsp;:</em> ${line.note}</div>`
+        : '';
+      return `${base}${supp}${note}`;
+    }
+
+    function renderSavedOrders(){
+      const area = byId('savedOrders'); 
+      area.innerHTML='';
+
+      const filterSel = byId('filterSlot');
+      let filter = '';
+      if (filterSel) {
+        const previous = filterSel.value;
+        const slots = [...new Set(savedOrders.map(o=>o.slot).filter(Boolean))].sort();
+
+        filterSel.innerHTML = '<option value="">Tous les créneaux</option>';
+        slots.forEach(s=>{
+          const opt = document.createElement('option');
+          opt.value = s;
+          opt.textContent = s;
+          filterSel.appendChild(opt);
+        });
+
+        filterSel.value = previous || '';
+        filter = filterSel.value;
+      }
+
+      const slotMinutes = (s)=>{
+        if(!s || !/^\d{2}:\d{2}$/.test(s)) return 99999;
+        const [h,m] = s.split(':').map(Number);
+        return h*60 + m;
+      };
+
+      const list = savedOrders
+        .filter(o => !filter || o.slot === filter)
+        .slice()
+        .sort((a,b)=>{
+          const d = slotMinutes(a.slot) - slotMinutes(b.slot);
+          if (d !== 0) return d;
+          return new Date(a.at) - new Date(b.at);
+        });
+
+      if(list.length===0){
+        const d=document.createElement('div'); 
+        d.className='help'; 
+        d.style.whiteSpace='nowrap'; 
+        d.textContent='Aucune commande enregistrée.'; 
+        area.appendChild(d); 
+        return;
+      }
+
+      list.forEach(o=>{
+        const note = document.createElement('article'); note.className='order-note';
+
+        const groups = { pizza:[], drink:[], dessert:[], other:[] };
+        (o.items||[]).forEach(i => groups[lineKind(i)].push(i));
+        function section(label, arr){
+          if(!arr.length) return '';
+          return `<div style="margin-top:4px"><strong>${label}</strong><br>${arr.map(formatLineHTML).join('<br>')}</div>`;
+        }
+        const itemsText =
+          section('🍕 Pizzas', groups.pizza) +
+          section('🥤 Boissons', groups.drink) +
+          section('🍰 Desserts', groups.dessert) +
+          section('Autres', groups.other);
+
+        const pizzasCount = countPizzasIn(o.items||[]);
+
+        note.innerHTML = `
+          <div class="note-actions">
+            <button class="icon-btn" title="Modifier" onclick="startEdit('${o.id}')">✏️</button>
+            <button class="icon-btn" title="Imprimer" onclick="printSavedOrder('${o.id}')">🖨️</button>
+            <button class="icon-btn" title="Supprimer" onclick="deleteOrder('${o.id}')">🗑️</button>
+          </div>
+          <header><span class="badge" data-status="${o.status}">${o.status}</span></header>
+          <h4>${o.ticket?o.ticket+' • ':''}${o.client}</h4>
+          <p class="help">
+            ${new Date(o.at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}
+            • ${o.type}
+            • ${o.slot||'—'}
+            • 🍕 ${pizzasCount} pizza${pizzasCount>1?'s':''}
+            ${o.phone ? ' • 📞 ' + o.phone : ''}
+          </p>
+          <div>${itemsText || ''}</div>
+          <p style="font-weight:800; margin-top:6px">${euro(o.total)}</p>
+          <div style="display:flex; gap:6px; margin-top:8px">
+            <button class="icon-btn" title="Marquer livrée" onclick="confirmDeliver('${o.id}')">🏁</button>
+          </div>`;
+        area.appendChild(note);
+      });
+    }
+
+    function deleteOrder(id){
+      if(!confirm('Supprimer cette commande ?')) return;
+      savedOrders = savedOrders.filter(o=>o.id!==id);
+      saveOrders();
+      renderSavedOrders();
+      updateSlotsCapacity();
+    }
+
+    /* ===== Impression ticket ===== */
+    function printOrder(order){
+      const w = window.open('', '_blank');
+      const style = `
+        @page{ size: 80mm auto; margin: 4mm }
+        *{ -webkit-print-color-adjust: exact; print-color-adjust: exact }
+        body{ font:14px/1.35 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; width:80mm; margin:0; padding:0 }
+        h1{ font-size:16px; margin:0 0 8px }
+        .muted{ opacity:.75 }
+        ul{ list-style:none; padding:0; margin:8px 0 }
+        li{ margin:4px 0; display:flex; justify-content:space-between; gap:8px }
+        .tot{ margin-top:8px; font-weight:700; border-top:1px dashed #999; padding-top:6px }
+      `;
+      const items = order.items.map(i=>{
+        const size = i.size ? ' ('+i.size+')' : '';
+        const tops = (i.toppings && i.toppings.length) ? ' + ' + i.toppings.join(', ') : '';
+        const note = i.note && i.note.trim() ? ` — Note: ${i.note}` : '';
+        return `<li><span>${i.qty}× ${i.name}${size}${tops}${note}</span><span>${euro(i.unitPrice * i.qty)}</span></li>`;
+      }).join('');
+      const phoneLine = order.phone ? `<div class="muted">Tél&nbsp;: ${order.phone}</div>` : '';
+      const html = `<!doctype html><html><head><meta charset="utf-8"><title>${order.ticket || 'Ticket'}</title><style>${style}</style></head><body>
+        <h1>Ticket ${order.ticket ? order.ticket + ' – ' : ''}${order.client}</h1>
+        <div class="muted">${new Date(order.at).toLocaleString('fr-FR')} • ${order.type} • ${order.slot}</div>
+        ${phoneLine}
+        <ul>${items}</ul>
+        <div class="tot">Total: ${euro(order.total)}</div>
+      </body></html>`;
+      w.document.open(); w.document.write(html); w.document.close(); w.focus(); w.print();
+    }
+    function printSavedOrder(id){ const o = savedOrders.find(x=>x.id===id); if(o) printOrder(o); }
+
+    /* ===== Archivage ===== */
+    function confirmDeliver(id){
+      const o = savedOrders.find(x=>x.id===id);
+      if(!o) return;
+      if(!confirm('Marquer cette commande comme livrée et l’archiver ?')) return;
+      o.status = 'livrée';
+      savedOrders = savedOrders.filter(x=>x.id!==id);
+      saveOrders();
+      archivedOrders.unshift({ ...o, archivedAt: new Date().toISOString() });
+      saveArchived();
+      renderSavedOrders();
+      updateSlotsCapacity();
+    }
+    function restoreOrder(id){
+      const idx = archivedOrders.findIndex(o => o.id === id);
+      if(idx === -1) return;
+      if(!confirm('Restaurer cette commande dans les post-it ?')) return;
+      const o = archivedOrders[idx];
+      archivedOrders.splice(idx, 1);
+      saveArchived();
+      const restored = { ...o, status: 'préparation', restoredAt: new Date().toISOString() };
+      savedOrders.unshift(restored);
+      saveOrders();
+      renderSavedOrders();
+      renderArchive(byId('archiveDateFilter')?.value || '');
+      updateSlotsCapacity();
+    }
+
+    function sameDayISO(ts){ const d=new Date(ts); return d.toISOString().slice(0,10); }
+    function todayISO(){ return new Date().toISOString().slice(0,10); }
+
+    function renderArchive(filterDay){
+      const area = byId('archiveContent');
+      const countLabel = byId('archiveCount');
+
+      let list = archivedOrders.slice();
+      if (filterDay) list = list.filter(o => sameDayISO(o.archivedAt || o.at) === filterDay);
+
+      if (countLabel) countLabel.textContent = `${list.length} commande(s) ${filterDay ? 'ce jour' : 'au total'}`;
+
+      if (!list.length) { area.innerHTML = '<p class="help">Aucune commande livrée pour cette sélection.</p>'; return; }
+
+      const wrapper = document.createElement('div');
+      wrapper.className = 'card';
+      wrapper.style.boxShadow = 'none';
+      wrapper.innerHTML = `
+        <div class="body" style="padding:0">
+          <table>
+            <thead>
+              <tr>
+                <th>Ticket</th><th>Date/Heure</th><th>Client</th><th>Créneau</th>
+                <th style="text-align:right">Total</th><th colspan="2" style="width:1%"></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>`;
+      const tbody = wrapper.querySelector('tbody');
+
+      list.forEach(o=>{
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${o.ticket||''}</td>
+          <td>${new Date(o.at).toLocaleString('fr-FR')}</td>
+          <td>${o.client}</td>
+          <td>${o.slot}</td>
+          <td style="text-align:right">${euro(o.total||0)}</td>
+          <td><button class="icon-btn" title="Imprimer">🖨️</button></td>
+          <td><button class="icon-btn" title="Restaurer">🔄</button></td>`;
+        const [printBtn, restoreBtn] = tr.querySelectorAll('button');
+        printBtn.addEventListener('click', ()=> printOrder(o));
+        restoreBtn.addEventListener('click', ()=> restoreOrder(o.id));
+        tbody.appendChild(tr);
+      });
+
+      area.innerHTML = '';
+      area.appendChild(wrapper);
+    }
+    function openArchive(){
+      const input = byId('archiveDateFilter');
+      const today = todayISO();
+      if (input) {
+        input.value = today;
+        input.onchange = ()=> renderArchive(input.value || '');
+      }
+      const btnToday = byId('archiveToday');
+      if (btnToday) btnToday.onclick = ()=>{ input.value = todayISO(); renderArchive(input.value); };
+      renderArchive(input ? input.value : '');
+      byId('archiveModal').classList.add('open');
+    }
+    function clearArchive(){
+      if (!archivedOrders.length) { alert('Historique déjà vide.'); return; }
+      if (!confirm('Supprimer définitivement toutes les commandes livrées de l’historique ?')) return;
+      if (!confirm('Confirmer encore : cette action est irréversible.')) return;
+      archivedOrders = [];
+      saveArchived();
+      renderArchive(byId('archiveDateFilter')?.value || '');
+      showHealth('Historique vidé.', 'ok', 2000);
+    }
+
+    /* ===== Exports ===== */
+    function exportCSV(){
+      const esc = (v)=>{ 
+        const s = String(v == null ? '' : v); 
+        return /[;"\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s; 
+      };
+
+      const rows = [[
+        'date',
+        'ticket',
+        'client',
+        'telephone',
+        'statut',
+        'créneau',
+        'article',
+        'taille',
+        'qté',
+        'prix_unitaire',
+        'total_ligne',
+        'total_commande'
+      ]];
+
+      const allOrders = [...savedOrders, ...archivedOrders];
+
+      allOrders.forEach(o=>{
+        (o.items||[]).forEach(i=>{
+          const lineTotal = (i.unitPrice||0) * (i.qty||0);
+          rows.push([
+            new Date(o.at).toLocaleString('fr-FR'),
+            o.ticket||'',
+            o.client||'',
+            o.phone||'',
+            o.status||'',
+            o.slot||'',
+            i.name||'',
+            i.size||'',
+            String(i.qty||0),
+            String(i.unitPrice||0).replace('.',','),
+            String(lineTotal).replace('.',','),
+            String(o.total||0).replace('.',',')
+          ]);
+        });
+      });
+
+      const csv = rows.map(r => r.map(esc).join(';')).join('\n');
+      const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+      const url = URL.createObjectURL(blob); const a=document.createElement('a');
+      a.href = url; a.download = `commandes_${new Date().toISOString().slice(0,10)}.csv`; a.click(); URL.revokeObjectURL(url);
+    }
+
+    /* ===== Fichier clients – affichage Admin / export ===== */
+    function renderClientsAdmin(){
+      const area = byId('clientsAdmin');
+      if(!area) return;
+      if(!clients.length){
+        area.innerHTML = '<p class="help">Aucun client enregistré pour le moment.</p>';
+        return;
+      }
+      const sorted = clients.slice().sort((a,b)=>{
+        const ca = a.count||0, cb=b.count||0;
+        if(cb!==ca) return cb-ca;
+        return (b.lastOrderAt||'').localeCompare(a.lastOrderAt||'');
+      });
+
+      const rows = sorted.map(c=>{
+        const last = c.lastOrderAt ? new Date(c.lastOrderAt).toLocaleString('fr-FR') : '—';
+        return `<tr>
+          <td>${c.name}</td>
+          <td>${c.phone}</td>
+          <td style="text-align:right">${c.count||1}</td>
+          <td>${last}</td>
+        </tr>`;
+      }).join('');
+      area.innerHTML = `
+        <div class="card" style="box-shadow:none;">
+          <div class="body" style="padding:0">
+            <table>
+              <thead>
+                <tr>
+                  <th>Nom</th>
+                  <th>Téléphone</th>
+                  <th style="text-align:right">Commandes</th>
+                  <th>Dernière commande</th>
+                </tr>
+              </thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+        </div>`;
+    }
+
+    function exportClients(){
+      if(!clients.length){
+        alert('Aucun client à exporter.');
+        return;
+      }
+      const esc = (v)=>{ 
+        const s = String(v == null ? '' : v); 
+        return /[;"\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s; 
+      };
+      const rows = [['nom','telephone','commandes','date_creation','derniere_commande']];
+      clients.forEach(c=>{
+        rows.push([
+          c.name||'',
+          c.phone||'',
+          String(c.count||1),
+          c.createdAt||'',
+          c.lastOrderAt||''
+        ]);
+      });
+      const csv = rows.map(r => r.map(esc).join(';')).join('\n');
+      const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+      const url = URL.createObjectURL(blob); const a=document.createElement('a');
+      a.href = url; a.download = `clients_${new Date().toISOString().slice(0,10)}.csv`; a.click(); URL.revokeObjectURL(url);
+    }
+
+    function clearClients(){
+      if(!clients.length){
+        alert('Fichier clients déjà vide.');
+        return;
+      }
+      if(!confirm('Vider complètement le fichier clients ?')) return;
+      if(!confirm('Confirmer encore : cette action est irréversible.')) return;
+      clients = [];
+      saveClients();
+      renderClientsAdmin();
+      showHealth('Fichier clients vidé.', 'ok', 2000);
+    }
+
+    /* ===== Stats ===== */
+    function computeStatsFor(day){
+      const allOrders = [...savedOrders, ...archivedOrders].filter(o => sameDayISO(o.at) === day);
+      const totalSales = allOrders.reduce((s,o)=> s + (o.total||0), 0);
+      const totalPizzas = allOrders.reduce((s,o)=> s + countPizzasIn(o.items||[]), 0);
+      const perSlot = new Map();
+      allOrders.forEach(o => perSlot.set(o.slot, (perSlot.get(o.slot)||0) + countPizzasIn(o.items||[])));
+      const sorted = [...perSlot.entries()].sort(([a],[b]) => a.localeCompare(b));
+      return { ordersCount: allOrders.length, totalSales, totalPizzas, perSlot: sorted };
+    }
+    function renderStatsFor(day){
+      const s = computeStatsFor(day);
+      const cards = `
+        <div class="stats-cards">
+          <div class="stats-card"><h4>Commandes</h4><div class="v">${s.ordersCount}</div></div>
+          <div class="stats-card"><h4>Pizzas</h4><div class="v">${s.totalPizzas}</div></div>
+          <div class="stats-card"><h4>Total ventes</h4><div class="v">${euro(s.totalSales)}</div></div>
+        </div>`;
+      let table = '';
+      if (s.perSlot.length){
+        const max = Math.max(1, ...s.perSlot.map(([,v]) => v));
+        const rows = s.perSlot.map(([slot, n]) => {
+          const pct = Math.round((n / max) * 100);
+          return `<tr><td>${slot}</td><td><div class="bar"><span style="width:${pct}%"></span></div></td><td style="text-align:right">${n}</td></tr>`;
+        }).join('');
+        table = `<div class="stats-table"><table><thead><tr><th>Créneau</th><th style="width:60%">Répartition</th><th style="text-align:right">Pizzas</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+      } else {
+        table = '<p class="help">Aucune commande pour cette date.</p>';
+      }
+      byId('statsContent').innerHTML = cards + table;
+    }
+    function openStats(){
+      const input = byId('statsDate');
+      const today = todayISO();
+      input.value = today;
+      renderStatsFor(today);
+      input.onchange = ()=> renderStatsFor(input.value || todayISO());
+      byId('statsToday').onclick = ()=>{ input.value = todayISO(); renderStatsFor(input.value); };
+      byId('statsPrev').onclick = ()=>{ const d = new Date(input.value||todayISO()); d.setDate(d.getDate()-1); input.value = d.toISOString().slice(0,10); renderStatsFor(input.value); };
+      byId('statsNext').onclick = ()=>{ const d = new Date(input.value||todayISO()); d.setDate(d.getDate()+1); input.value = d.toISOString().slice(0,10); renderStatsFor(input.value); };
+      byId('statsModal').classList.add('open');
+    }
+
+    /* ===== Admin JSON + Déverrouillage ===== */
+    function applyAdmin(){
+      const txt = byId('adminJson').value;
+      try{
+        const obj = JSON.parse(txt);
+        if(!obj || !Array.isArray(obj.pizzas) || !Array.isArray(obj.drinks) || !Array.isArray(obj.desserts)){
+          alert('Format invalide: pizzas/drinks/desserts doivent être des tableaux.');
+          return;
+        }
+        CATALOG = obj;
+        saveCatalog();
+        renderMenu();
+        updateSlotsCapacity();
+        alert('Catalogue enregistré.');
+      }catch(e){
+        const m = /position\s+(\d+)/i.exec(e.message||'');
+        if(m){
+          const pos = Number(m[1]);
+          const before = txt.slice(0, pos);
+          const line = (before.match(/\n/g)||[]).length + 1;
+          const col = pos - (before.lastIndexOf('\n')+1) + 1;
+          alert(`JSON invalide (ligne ${line}, colonne ${col}) : ${e.message}`);
+        }else{
+          alert('JSON invalide: '+ e.message);
+        }
+      }
+    }
+    function exportCatalog(){
+      const blob = new Blob([JSON.stringify(CATALOG,null,2)], {type:'application/json'});
+      const url = URL.createObjectURL(blob); const a=document.createElement('a');
+      a.href=url; a.download='catalogue_pizzeria.json'; a.click(); URL.revokeObjectURL(url);
+    }
+    function resetCatalog(){ if(!confirm('Réinitialiser le catalogue par défaut ?')) return; CATALOG = structuredClone(DEFAULT_CATALOG); saveCatalog(); renderMenu(); openAdmin(); updateSlotsCapacity(); }
+    function openAdmin(){
+      const data = JSON.stringify(CATALOG, null, 2);
+      byId('adminJson').value = data;
+      renderClientsAdmin();
+      byId('adminModal').classList.add('open');
+    }
+    function syncUnlockToggle(){
+      const ck = byId('unlockToggle');
+      if (!ck) return;
+      ck.checked = !!unlockSlots;
+      ck.title = unlockSlots ? 'Mode déverrouillé actif' : 'Déverrouiller les créneaux';
+    }
+
+    /* ===== Listeners globaux ===== */
+    byId('resetOrder').addEventListener('click', resetOrder);
+    byId('saveOrder').addEventListener('click', saveOrder);
+    byId('exportJSON').addEventListener('click', ()=>{
+      const blob = new Blob([JSON.stringify(savedOrders,null,2)], {type:'application/json'});
+      const url = URL.createObjectURL(blob); const a=document.createElement('a');
+      a.href=url; a.download=`commandes_${new Date().toISOString().slice(0,10)}.json`; a.click(); URL.revokeObjectURL(url);
+    });
+    byId('exportCSV').addEventListener('click', exportCSV);
+
+    byId('openAdmin').addEventListener('click', ()=>{
+      openAdmin();
+      syncUnlockToggle();
+    });
+    byId('closeAdmin').addEventListener('click', ()=>{ const m=byId('adminModal'); m.classList.remove('open'); });
+    byId('saveCatalog').addEventListener('click', applyAdmin);
+    byId('exportCatalog').addEventListener('click', exportCatalog);
+    byId('resetCatalog').addEventListener('click', resetCatalog);
+
+    const _ec = byId('exportClients'); if(_ec) _ec.addEventListener('click', exportClients);
+    const _rc = byId('refreshClients'); if(_rc) _rc.addEventListener('click', renderClientsAdmin);
+    const _cc = byId('clearClients'); if(_cc) _cc.addEventListener('click', clearClients);
+
+    document.addEventListener('change', (e)=>{
+      if(e.target && e.target.id === 'unlockToggle'){
+        unlockSlots = e.target.checked;
+        localStorage.setItem('pizzeria.unlock', JSON.stringify(unlockSlots));
+        updateSlotsCapacity();
+        showHealth(unlockSlots ? 'Déverrouillage des créneaux ACTIVÉ' : 'Déverrouillage désactivé', unlockSlots ? 'ok' : 'error', 1800);
+      }
+    });
+
+    byId('toggleTheme').addEventListener('click', ()=>{ const next = document.documentElement.classList.contains('dark') ? 'light' : 'dark'; applyTheme(next, true); });
+
+    document.querySelectorAll('.tab').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        document.querySelectorAll('.tab').forEach(b=> b.classList.remove('active'));
+        btn.classList.add('active');
+        currentCategory = btn.getAttribute('data-cat');
+        renderMenu();
+      });
+    });
+
+    byId('client').addEventListener('input', ()=>{ 
+      updateFieldHints();
+      handleClientChange();
+    });
+
+    byId('slot').addEventListener('input', updateFieldHints);
+    byId('slot').addEventListener('change', updateFieldHints);
+
+    byId('phone').addEventListener('input', ()=>{ 
+      updateFieldHints();
+      handlePhoneChange();
+    });
+
+    const _fs = byId('filterSlot');
+    if (_fs) {
+      _fs.addEventListener('change', renderSavedOrders);
+    }
+
+    byId('closeCfg').addEventListener('click', ()=> byId('configModal').classList.remove('open'));
+    byId('cancelCfg').addEventListener('click', ()=> byId('configModal').classList.remove('open'));
+    byId('cfgQty').addEventListener('input', (e)=>{ cfg.qty = Math.max(1, Number(e.target.value||1)); updateCfgPrice(); });
+    byId('qtyMinus').addEventListener('click', ()=>{ byId('cfgQty').value = Math.max(1, Number(byId('cfgQty').value)-1); byId('cfgQty').dispatchEvent(new Event('input')); });
+    byId('qtyPlus').addEventListener('click', ()=>{ byId('cfgQty').value = Number(byId('cfgQty').value)+1; byId('cfgQty').dispatchEvent(new Event('input')); });
+    document.addEventListener('click', (e)=>{
+      if(e.target.matches('.chip-btn[data-size]') && e.target.closest('#configModal .quick-actions')){
+        cfg.size = e.target.getAttribute('data-size'); updateCfgPrice();
+      }
+    });
+    byId('addCfg').addEventListener('click', ()=>{
+      const p = CATALOG.pizzas.find(x=>x.id===cfg.pizzaId); if(!p) return;
+      const unitPrice = p.base[cfg.size] + cfg.toppings.length * (CATALOG.toppingPrice||0);
+      const key = `pizza:${p.id}:${cfg.size}:${cfg.toppings.slice().sort().join('+')}`;
+      const noteText = (byId('notes').value || '').trim();
+      addOrIncrement(key, ()=>({
+        id: crypto.randomUUID(),
+        kind:'pizza',
+        pizzaId: p.id,
+        name:p.name,
+        size:cfg.size,
+        qty:cfg.qty,
+        toppings:[...cfg.toppings],
+        note: noteText,
+        unitPrice
+      }));
+      byId('configModal').classList.remove('open');
+    });
+
+    const _os = byId('openStats'); if(_os) _os.addEventListener('click', openStats);
+    const _cs = byId('closeStats'); if(_cs) _cs.addEventListener('click', ()=> byId('statsModal').classList.remove('open'));
+
+    const _oa = byId('openArchive'); if(_oa) _oa.addEventListener('click', openArchive);
+    const _ca = byId('closeArchive'); if(_ca) _ca.addEventListener('click', ()=> byId('archiveModal').classList.remove('open'));
+    const _clear = byId('clearArchive'); if (_clear) _clear.addEventListener('click', clearArchive);
+
+    window.addEventListener('error', (e)=>{ try{ showHealth('Erreur JS : '+ e.message, 'error'); }catch(_){} });
+    window.addEventListener('unhandledrejection', (e)=>{ try{ const msg = (e.reason && (e.reason.message||e.reason)) || 'Rejet de promesse'; showHealth('Erreur : '+ msg, 'error'); }catch(_){} });
+
+    function selfTests(){
+      try{
+        if(!CATALOG || !Array.isArray(CATALOG.pizzas) || CATALOG.pizzas.length===0) throw new Error('Catalogue pizzas vide');
+        const slotSel = byId('slot');
+        const optCount = slotSel.options.length;
+        if(optCount < 5) throw new Error('Créneaux non générés');
+        const grid = byId('menuGrid');
+        if(grid.children.length === 0) throw new Error('Menu non rendu');
+        showHealth('Interface prête', 'ok', 1500);
+      }catch(err){ showHealth('Test: '+err.message, 'error'); }
+    }
+
+    function boot(){
+      try{
+        applyTheme(getPreferredTheme(), false);
+        loadCatalog();
+        loadClients();
+        renderMenu();
+        loadOrders();
+        loadArchived();
+        loadCart();
+        renderOrderTable();
+        buildSlots();
+        updateFieldHints();
+        setTimeout(selfTests, 50);
+      }catch(e){
+        console.error(e);
+        showHealth('Erreur au démarrage : '+ (e.message||e), 'error');
+      }
+    }
+    if(document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', boot); }
+    else { boot(); }
+  </script>
+</body>
+</html>
