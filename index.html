@@ -4,6 +4,11 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Pizzeria – Prise de commande (À emporter)</title>
+
+  <!-- Firebase v8 (compat, plus simple pour iPad + Android) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
   <style>
     :root{
       --bg:#faf7f2; --ink:#1f2328; --brand:#e63946; --accent:#1d3557;
@@ -320,8 +325,7 @@
   </div>
 
   <script>
-
-// Polyfill structuredClone pour anciens iPad / Safari
+    // Polyfill structuredClone pour anciens iPad / Safari
     if (typeof structuredClone !== 'function') {
       window.structuredClone = (obj) => JSON.parse(JSON.stringify(obj));
     }
@@ -367,6 +371,28 @@
       if(t){ t.textContent = (mode==='dark') ? '☀️' : '🌙'; t.title = (mode==='dark') ? 'Mode clair' : 'Mode sombre'; }
     }
 
+    /* ===== Firebase / Firestore ===== */
+    let db = null;
+    (function initFirebase(){
+      try{
+        // ⬇⬇⬇ REMPLIS ICI AVEC TA CONFIG FIREBASE ⬇⬇⬇
+        const firebaseConfig = {
+          apiKey: "A_RENSEIGNER",
+          authDomain: "A_RENSEIGNER.firebaseapp.com",
+          projectId: "A_RENSEIGNER"
+        };
+        if(firebaseConfig.apiKey && firebaseConfig.projectId){
+          firebase.initializeApp(firebaseConfig);
+          db = firebase.firestore();
+          console.log('Firebase prêt');
+        } else {
+          console.warn('Config Firebase incomplète : pas de synchro en ligne.');
+        }
+      }catch(e){
+        console.warn('Firebase non initialisé :', e);
+      }
+    })();
+
     /* ===== Tickets ===== */
     function todayKey(){ const d=new Date(); const y=d.getFullYear(); const m=String(d.getMonth()+1).padStart(2,'0'); const day=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${day}`; }
     function loadTicketState(){ const date=localStorage.getItem('pizzeria.ticketDate'); const seq=parseInt(localStorage.getItem('pizzeria.ticketSeq')||'0',10); return {date, seq: isNaN(seq)?0:seq}; }
@@ -411,16 +437,15 @@
     // Fichier clients (local)
     let clients = [];
 
-    // Mode déverrouillage des créneaux (stocké)
+    // Créneaux déverrouillés
     let unlockSlots = JSON.parse(localStorage.getItem('pizzeria.unlock') || 'false');
 
-    /* ===== Persistance commandes / archives ===== */
+    /* ===== Persistance locale (cache) ===== */
     function saveOrders(){ localStorage.setItem('pizzeria.orders', JSON.stringify(savedOrders)); }
     function loadOrders(){ savedOrders = JSON.parse(localStorage.getItem('pizzeria.orders')||'[]'); renderSavedOrders(); updateSlotsCapacity(); }
     function saveArchived(){ localStorage.setItem('pizzeria.archived', JSON.stringify(archivedOrders)); }
     function loadArchived(){ archivedOrders = JSON.parse(localStorage.getItem('pizzeria.archived')||'[]'); }
 
-    // Sauvegarde panier
     function saveCart(){ localStorage.setItem('pizzeria.cart', JSON.stringify(currentItems)); }
     function loadCart(){ try{ const raw=localStorage.getItem('pizzeria.cart'); if(raw){ currentItems=JSON.parse(raw)||[]; } }catch(_){ currentItems=[]; } }
 
@@ -444,7 +469,6 @@
       const n = (name||'').trim();
       const p = (phone||'').trim();
       if(!n || !p) return;
-
       const now = new Date().toISOString();
       const normPhone = normalizePhone(p);
       const normName  = normalizeName(n);
@@ -528,7 +552,6 @@
         CATALOG.desserts.forEach(d=> grid.appendChild(simpleItemCard(d, 'dessert')) );
       }
     }
-
     function pizzaCard(p){
       const card = document.createElement('article');
       card.className = 'item-card';
@@ -558,7 +581,6 @@
       });
       return card;
     }
-
     function simpleItemCard(item, kind){
       const card = document.createElement('article'); card.className='item-card';
       card.innerHTML = `
@@ -572,13 +594,11 @@
       card.querySelector('button').addEventListener('click', ()=> quickAddSimple(item.id, kind) );
       return card;
     }
-
     function addOrIncrement(key, create){
       const found = currentItems.find(l=> l.key===key);
       if(found){ found.qty += 1; renderOrderTable(); return; }
       const line = create(); line.key = key; currentItems.push(line); renderOrderTable();
     }
-
     function quickAddPizza(pizzaId, size){
       const p = CATALOG.pizzas.find(x=>x.id===pizzaId); if(!p) return;
       const key = `pizza:${pizzaId}:${size}:none`;
@@ -593,7 +613,6 @@
         unitPrice: p.base[size]
       }));
     }
-
     function quickAddSimple(id, kind){
       if(kind==='drink'){
         const d = CATALOG.drinks.find(x=>x.id===id); if(!d) return;
@@ -761,7 +780,6 @@
 
       updateFieldHints();
     }
-
     function handlePhoneChange(){
       const nameInput = byId('client');
       const phoneInput = byId('phone');
@@ -778,7 +796,6 @@
       if(matches.length === 1){
         const c = matches[0];
         const currentName = nameInput.value.trim();
-        // Ici on ne change le nom QUE s'il est vide ou déjà identique au client trouvé
         if(!currentName || normalizeName(currentName) === normalizeName(c.name)){
           nameInput.value = c.name;
         }
@@ -809,7 +826,32 @@
       updateFieldHints();
     }
 
-    /* ===== Enregistrement (localStorage) ===== */
+    /* ===== Synchro Firestore temps réel ===== */
+    function setupRealtime(){
+      if(!db) return;
+
+      db.collection('orders').orderBy('at','desc').onSnapshot((snap)=>{
+        const arr=[];
+        snap.forEach(doc=> arr.push(doc.data()));
+        savedOrders = arr;
+        saveOrders();
+        renderSavedOrders();
+        updateSlotsCapacity();
+      }, (err)=> console.error('Firestore orders error', err));
+
+      db.collection('archivedOrders').orderBy('at','desc').onSnapshot((snap)=>{
+        const arr=[];
+        snap.forEach(doc=> arr.push(doc.data()));
+        archivedOrders = arr;
+        saveArchived();
+        const m = byId('archiveModal');
+        if(m && m.classList.contains('open')){
+          renderArchive(byId('archiveDateFilter')?.value || '');
+        }
+      }, (err)=> console.error('Firestore archived error', err));
+    }
+
+    /* ===== Enregistrement ===== */
     function saveOrder(){
       const clientEl = byId('client');
       const slotEl = byId('slot');
@@ -853,20 +895,30 @@
 
       if(editingOrderId){
         const idx = savedOrders.findIndex(o=>o.id===editingOrderId);
-        if(idx !== -1){
-          const old = savedOrders[idx];
-          savedOrders[idx] = {
-            ...old,
-            client: clientName,
-            phone,
-            slot,
-            status: old.status || 'préparation',
-            items: structuredClone(currentItems),
-            total,
-            updatedAt: new Date().toISOString()
-          };
-          saveOrders(); renderSavedOrders(); updateSlotsCapacity();
-          showHealth('Commande mise à jour ✅', 'ok', 2000);
+        const base = idx !== -1 ? savedOrders[idx] : {};
+        const updated = {
+          ...base,
+          client: clientName,
+          phone,
+          slot,
+          status: base.status || 'préparation',
+          items: structuredClone(currentItems),
+          total,
+          updatedAt: new Date().toISOString()
+        };
+
+        if(db){
+          db.collection('orders').doc(editingOrderId).set(updated).then(()=>{
+            showHealth('Commande mise à jour ✅', 'ok', 2000);
+          }).catch(err=>{
+            console.error(err);
+            showHealth('Erreur Firebase (maj) : ' + (err.message||err), 'error');
+          });
+        } else {
+          if(idx !== -1){
+            savedOrders[idx] = updated;
+            saveOrders(); renderSavedOrders(); updateSlotsCapacity();
+          }
         }
         resetOrder();
         return;
@@ -885,8 +937,19 @@
         items: structuredClone(currentItems),
         total
       };
-      savedOrders.unshift(order);
-      saveOrders(); renderSavedOrders(); updateSlotsCapacity();
+
+      if(db){
+        db.collection('orders').doc(order.id).set(order).then(()=>{
+          // la mise à jour viendra par onSnapshot
+        }).catch(err=>{
+          console.error(err);
+          showHealth('Erreur Firebase (création) : ' + (err.message||err), 'error');
+        });
+      } else {
+        savedOrders.unshift(order);
+        saveOrders(); renderSavedOrders(); updateSlotsCapacity();
+      }
+
       resetOrder();
     }
 
@@ -936,7 +999,6 @@
       if (filterSel) {
         const previous = filterSel.value;
         const slots = [...new Set(savedOrders.map(o=>o.slot).filter(Boolean))].sort();
-
         filterSel.innerHTML = '<option value="">Tous les créneaux</option>';
         slots.forEach(s=>{
           const opt = document.createElement('option');
@@ -944,7 +1006,6 @@
           opt.textContent = s;
           filterSel.appendChild(opt);
         });
-
         filterSel.value = previous || '';
         filter = filterSel.value;
       }
@@ -1016,10 +1077,15 @@
 
     function deleteOrder(id){
       if(!confirm('Supprimer cette commande ?')) return;
-      savedOrders = savedOrders.filter(o=>o.id!==id);
-      saveOrders();
-      renderSavedOrders();
-      updateSlotsCapacity();
+      if(db){
+        db.collection('orders').doc(id).delete().catch(err=>{
+          console.error(err);
+          showHealth('Erreur Firebase (suppression) : ' + (err.message||err), 'error');
+        });
+      } else {
+        savedOrders = savedOrders.filter(o=>o.id!==id);
+        saveOrders(); renderSavedOrders(); updateSlotsCapacity();
+      }
     }
 
     /* ===== Impression ticket ===== */
@@ -1054,35 +1120,59 @@
     function printSavedOrder(id){ const o = savedOrders.find(x=>x.id===id); if(o) printOrder(o); }
 
     /* ===== Archivage ===== */
+    function sameDayISO(ts){ const d=new Date(ts); return d.toISOString().slice(0,10); }
+    function todayISO(){ return new Date().toISOString().slice(0,10); }
+
     function confirmDeliver(id){
       const o = savedOrders.find(x=>x.id===id);
       if(!o) return;
       if(!confirm('Marquer cette commande comme livrée et l’archiver ?')) return;
-      o.status = 'livrée';
-      savedOrders = savedOrders.filter(x=>x.id!==id);
-      saveOrders();
-      archivedOrders.unshift({ ...o, archivedAt: new Date().toISOString() });
-      saveArchived();
-      renderSavedOrders();
-      updateSlotsCapacity();
+      const archived = { ...o, status:'livrée', archivedAt:new Date().toISOString() };
+
+      if(db){
+        const batch = db.batch();
+        const refOrder = db.collection('orders').doc(id);
+        const refArch  = db.collection('archivedOrders').doc(id);
+        batch.set(refArch, archived);
+        batch.delete(refOrder);
+        batch.commit().catch(err=>{
+          console.error(err);
+          showHealth('Erreur Firebase (archivage) : ' + (err.message||err), 'error');
+        });
+      } else {
+        savedOrders = savedOrders.filter(x=>x.id!==id);
+        archivedOrders.unshift(archived);
+        saveOrders(); saveArchived();
+        renderSavedOrders(); updateSlotsCapacity();
+      }
     }
+
     function restoreOrder(id){
       const idx = archivedOrders.findIndex(o => o.id === id);
       if(idx === -1) return;
       if(!confirm('Restaurer cette commande dans les post-it ?')) return;
       const o = archivedOrders[idx];
-      archivedOrders.splice(idx, 1);
-      saveArchived();
-      const restored = { ...o, status: 'préparation', restoredAt: new Date().toISOString() };
-      savedOrders.unshift(restored);
-      saveOrders();
-      renderSavedOrders();
-      renderArchive(byId('archiveDateFilter')?.value || '');
-      updateSlotsCapacity();
-    }
+      const restored = { ...o, status:'préparation', restoredAt:new Date().toISOString() };
 
-    function sameDayISO(ts){ const d=new Date(ts); return d.toISOString().slice(0,10); }
-    function todayISO(){ return new Date().toISOString().slice(0,10); }
+      if(db){
+        const batch = db.batch();
+        const refArch  = db.collection('archivedOrders').doc(id);
+        const refOrder = db.collection('orders').doc(id);
+        batch.set(refOrder, restored);
+        batch.delete(refArch);
+        batch.commit().catch(err=>{
+          console.error(err);
+          showHealth('Erreur Firebase (restauration) : ' + (err.message||err), 'error');
+        });
+      } else {
+        archivedOrders.splice(idx,1);
+        savedOrders.unshift(restored);
+        saveOrders(); saveArchived();
+        renderSavedOrders();
+        renderArchive(byId('archiveDateFilter')?.value || '');
+        updateSlotsCapacity();
+      }
+    }
 
     function renderArchive(filterDay){
       const area = byId('archiveContent');
@@ -1147,10 +1237,28 @@
       if (!archivedOrders.length) { alert('Historique déjà vide.'); return; }
       if (!confirm('Supprimer définitivement toutes les commandes livrées de l’historique ?')) return;
       if (!confirm('Confirmer encore : cette action est irréversible.')) return;
-      archivedOrders = [];
-      saveArchived();
-      renderArchive(byId('archiveDateFilter')?.value || '');
-      showHealth('Historique vidé.', 'ok', 2000);
+
+      if(db){
+        // suppression côté Firestore
+        const batch = db.batch();
+        archivedOrders.forEach(o=>{
+          batch.delete(db.collection('archivedOrders').doc(o.id));
+        });
+        batch.commit().then(()=>{
+          archivedOrders = [];
+          saveArchived();
+          renderArchive(byId('archiveDateFilter')?.value || '');
+          showHealth('Historique vidé.', 'ok', 2000);
+        }).catch(err=>{
+          console.error(err);
+          showHealth('Erreur Firebase (vider historique) : ' + (err.message||err), 'error');
+        });
+      } else {
+        archivedOrders = [];
+        saveArchived();
+        renderArchive(byId('archiveDateFilter')?.value || '');
+        showHealth('Historique vidé.', 'ok', 2000);
+      }
     }
 
     /* ===== Exports ===== */
@@ -1159,7 +1267,6 @@
         const s = String(v == null ? '' : v); 
         return /[;"\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s; 
       };
-
       const rows = [[
         'date',
         'ticket',
@@ -1418,10 +1525,8 @@
       updateFieldHints();
       handleClientChange();
     });
-
     byId('slot').addEventListener('input', updateFieldHints);
     byId('slot').addEventListener('change', updateFieldHints);
-
     byId('phone').addEventListener('input', ()=>{ 
       updateFieldHints();
       handlePhoneChange();
@@ -1495,6 +1600,7 @@
         renderOrderTable();
         buildSlots();
         updateFieldHints();
+        if(db){ setupRealtime(); }
         setTimeout(selfTests, 50);
       }catch(e){
         console.error(e);
