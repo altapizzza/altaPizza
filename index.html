@@ -37,25 +37,24 @@
     .icon-btn:hover{background:rgba(0,0,0,.18)}
     .dark .icon-btn{background:#272b36}
     .dark .icon-btn:hover{background:#323848}
-/* Option D — Post-it couleur claire, mais adoucie en mode nuit */
-.dark .order-note {
-  background: #bfae72;              /* jaune post-it désaturé élégant */
-  color: #2a2a2a;                    /* texte foncé pour contraste */
-  border-color: rgba(0,0,0,.25);
-  box-shadow:
-    0 6px 14px -6px rgba(0,0,0,.6),
-    inset 0 1px 0 rgba(255,255,255,.15);
-}
 
-/* Texte “aide” (créneau, téléphone, etc.) */
-.dark .order-note .help {
-  color:#3a3a3a;                    /* plus doux mais lisible */
-}
+    /* Option D — Post-it couleur claire, mais adoucie en mode nuit */
+    .dark .order-note {
+      background: #bfae72;
+      color: #2a2a2a;
+      border-color: rgba(0,0,0,.25);
+      box-shadow:
+        0 6px 14px -6px rgba(0,0,0,.6),
+        inset 0 1px 0 rgba(255,255,255,.15);
+    }
+    .dark .order-note .help {
+      color:#3a3a3a;
+    }
+    .dark .order-note::after {
+      border-color: rgba(0,0,0,.35) transparent transparent transparent;
+    }
 
-/* Coin plié du post-it */
-.dark .order-note::after {
-  border-color: rgba(0,0,0,.35) transparent transparent transparent;
-}    /* Mise en page */
+    /* Mise en page */
     .wrap{max-width:1100px; margin:18px auto; padding:0 16px}
     .grid{display:grid; grid-template-columns: 1.2fr .8fr; gap:18px}
     @media (max-width: 920px){.grid{grid-template-columns:1fr}}
@@ -127,6 +126,7 @@
     .modal{position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.25); z-index:1000}
     .modal.open{ display:flex !important; }
     .modal-panel{background:#fff; width:min(780px, 94vw); max-height:90vh; border-radius:16px; border:1px solid #eee; box-shadow:0 30px 50px -30px rgba(0,0,0,.45); overflow:auto}
+    .modal-panel.large{width:min(1000px,96vw);}
     .dark .modal-panel{ background:var(--card); border-color:#2a2f3a}
     .modal header{position:sticky; top:0; padding:14px 16px; border-bottom:1px solid #f0f0f0; display:flex; justify-content:space-between; align-items:center; background:inherit; z-index:1}
     .modal .body{padding:16px}
@@ -138,31 +138,32 @@
     .dark .chip{background:#111827; color:#e5e7eb; border-color:#2a2f3a}
     textarea.json-editor{width:100%; min-height:360px; font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:13px; padding:12px; border:1px solid #ddd; border-radius:12px}
     .dark textarea.json-editor{background:#111827; color:#e5e7eb; border-color:#2a2f3a}
-	.dark input,
-.dark textarea,
-.dark select {
-  color: #fff !important;
-  background-color: #222 !important;
-  border-color: #555 !important;
-}
+    .dark input,
+    .dark textarea,
+    .dark select {
+      color: #fff !important;
+      background-color: #222 !important;
+      border-color: #555 !important;
+    }
+    .dark input::placeholder,
+    .dark textarea::placeholder {
+      color: #bbb !important;
+    }
+    .dark .modal .body {
+      color: #fff !important;
+    }
+    .dark #client,
+    .dark #phone {
+      color: #fff !important;
+      background-color: #222 !important;
+    }
 
-/* Placeholders visibles en mode nuit */
-.dark input::placeholder,
-.dark textarea::placeholder {
-  color: #bbb !important;
-}
-
-/* Dans le configurateur / modale, si background clair */
-.dark .modal .body {
-  color: #fff !important;
-}
-
-/* Si tu as des champs spécifiques comme #client et #phone */
-.dark #client,
-.dark #phone {
-  color: #fff !important;
-  background-color: #222 !important;
-}
+    /* Tableau aperçu export */
+    .table-export{width:100%; border-collapse:collapse; font-size:13px}
+    .table-export th, .table-export td{border:1px solid #e5e7eb; padding:6px 8px; text-align:left}
+    .dark .table-export th, .dark .table-export td{border-color:#2a2f3a}
+    .table-export thead{background:#f9fafb}
+    .dark .table-export thead{background:#111827}
   </style>
 </head>
 <body>
@@ -203,7 +204,7 @@
               <option value="">Sélectionner un numéro…</option>
             </select>
 
-            <button class="btn ghost" id="resetOrder">Nouvelle</button>
+            <button class="btn ghost" id="resetOrder">Reset Panier</button>
             <button class="btn secondary" id="saveOrder">Enregistrer la commande</button>
             <button class="btn ghost" id="toggleTheme" title="Mode sombre">🌙</button>
             <button class="btn" id="openAdmin">Admin</button>
@@ -234,7 +235,8 @@
             </div>
           </div>
           <p class="help">Commande par défaut : <strong>à emporter</strong>.</p>
-          <button class="btn secondary" id="exportJSON">Exporter les commandes (JSON)</button>
+          <button class="btn ghost" id="exportJSON">Sauvegarde System</button>
+          <div id="lastBackupInfo" style="font-size: 0.8rem; opacity: 0.7; margin-top: 4px;"></div>
           <button class="btn ghost" id="exportCSV">Exporter (CSV)</button>
         </div>
       </aside>
@@ -326,21 +328,33 @@
   <div class="modal" id="statsModal" aria-hidden="true" role="dialog" aria-labelledby="statsTitle">
     <div class="modal-panel">
       <header>
-        <h3 id="statsTitle" style="margin:0">Statistiques du jour</h3>
+        <h3 id="statsTitle" style="margin:0">Statistiques</h3>
         <button class="icon-btn" id="closeStats" aria-label="Fermer">✕</button>
       </header>
       <div class="body">
-       <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap">
-  			<input type="date" id="statsStart" />
-  			<input type="date" id="statsEnd" />
-  			<button class="btn ghost" id="statsToday" title="Revenir à aujourd’hui">Aujourd’hui</button>
-  			<button class="btn ghost" id="statsThisMonth" title="Ce mois">Ce mois</button>
-  			<div style="flex:1"></div>
-  			<button class="btn ghost" id="exportStats" title="Exporter les stats (CSV)">Exporter</button>
-	    <button class="btn ghost" id="exportDrinksDesserts" title="Exporter boissons & desserts (CSV)">Boissons & 		       desserts</button>
-	</div>
-<div id="statsContent" class="help"></div>
+        <!-- Filtres période + exports principaux -->
+        <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap">
+          <input type="date" id="statsStart" />
+          <input type="date" id="statsEnd" />
+          <button class="btn ghost" id="statsToday" title="Revenir à aujourd’hui">Aujourd’hui</button>
+          <button class="btn ghost" id="statsThisMonth" title="Ce mois">Ce mois</button>
+          <div style="flex:1"></div>
+          <button class="btn ghost" id="exportStats" title="Exporter les stats (CSV)">Créneaux</button>
+          <button class="btn ghost" id="exportDrinksDesserts" title="Exporter boissons & desserts (CSV)">Boissons & desserts</button>
+        </div>
 
+        <!-- Ligne d’exports métiers -->
+        <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap">
+          <button class="btn ghost" id="exportDailyTypes" title="Résumé journalier par type">Résumé journalier</button>
+          <button class="btn ghost" id="exportTopClients" title="Top clients">Top clients</button>
+          <button class="btn ghost" id="exportAvgSlot" title="Panier moyen par créneau">Panier par créneau</button>
+          <button class="btn ghost" id="exportProductMix" title="Mix produits">Mix produits</button>
+          <button class="btn ghost" id="exportWeekday" title="Ventes par jour de la semaine">Jours de semaine</button>
+          <button class="btn ghost" id="exportTicketsChrono" title="Valeur tickets">Tickets chrono</button>
+          <button class="btn ghost" id="exportMonthlyCompare" title="Comparatif mois">Mois N / N-1</button>
+        </div>
+
+        <div id="statsContent" class="help"></div>
       </div>
     </div>
   </div>
@@ -354,18 +368,41 @@
       </header>
       <div class="body">
         <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap">
- 			 <input type="date" id="archiveStart" />
-  			<input type="date" id="archiveEnd" />
-  			<button class="btn ghost" id="archiveToday" title="Aujourd’hui">Aujourd’hui</button>
-  			<button class="btn ghost" id="archiveThisMonth" title="Ce mois">Ce mois</button>
-  			<span class="help" id="archiveCount"></span>
-  			<div style="flex:1"></div>
-  			<button class="btn ghost" id="exportArchive" title="Exporter l’historique (CSV)">Exporter</button>
-  			<button class="btn" id="clearArchive" title="Supprimer définitivement l’historique" style="display:none">Vider 		   l’historique</button>
-	</div>
-Vider l’historique</button>
+          <input type="date" id="archiveStart" />
+          <input type="date" id="archiveEnd" />
+          <button class="btn ghost" id="archiveToday" title="Aujourd’hui">Aujourd’hui</button>
+          <button class="btn ghost" id="archiveThisMonth" title="Afficher le mois en cours">Ce mois</button>
+
+          <span class="help" id="archiveCount"></span>
+
+          <div style="flex:1"></div>
+
+          <div class="tabs" id="archiveViewTabs">
+            <button class="tab active" id="archiveViewDetail">Détail</button>
+            <button class="tab" id="archiveViewDaily">Journalier</button>
+          </div>
+
+          <button class="btn ghost" id="exportArchive" title="Exporter l’historique (CSV)">Exporter</button>
+          <button class="btn" id="clearArchive" title="Supprimer définitivement l’historique" style="display:none">Vider l’historique</button>
         </div>
+
         <div id="archiveContent" class="help"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal aperçu exports -->
+  <div class="modal" id="exportPreviewModal" aria-hidden="true" role="dialog">
+    <div class="modal-panel large">
+      <header>
+        <h3 id="exportPreviewTitle">Aperçu export</h3>
+        <button class="icon-btn" id="closeExportPreview" aria-label="Fermer">✕</button>
+      </header>
+      <div class="body">
+        <div id="exportPreviewContent" class="help" style="max-height:60vh; overflow:auto;"></div>
+        <div style="margin-top:12px; display:flex; justify-content:flex-end">
+          <button class="btn" id="exportPreviewDownload">Exporter en CSV</button>
+        </div>
       </div>
     </div>
   </div>
@@ -458,12 +495,48 @@ Vider l’historique</button>
     let cfg = { pizzaId:null, size:'petite', qty:1, toppings:[] };
     let currentCategory = 'pizzas';
     let editingOrderId = null;
+    let archiveViewMode = 'detail'; // 'detail' ou 'daily'
 
     // Fichier clients (local)
     let clients = [];
 
     // Mode déverrouillage des créneaux (stocké)
     let unlockSlots = JSON.parse(localStorage.getItem('pizzeria.unlock') || 'false');
+
+    /* ===== Helpers exports & stats ===== */
+    let currentPreviewCSV = ''; // pour la modale d’aperçu exports
+
+    function csvEscape(v){
+      const str = String(v == null ? '' : v);
+      return /[;"\n]/.test(str) ? '"' + str.replace(/"/g, '""') + '"' : str;
+    }
+    function rowsToCSV(rows){
+      return rows.map(r => r.map(csvEscape).join(';')).join('\n');
+    }
+    function rowsToHTMLTable(rows){
+      if (!rows.length) return '<p>Aucune donnée</p>';
+      const header = rows[0];
+      const body   = rows.slice(1);
+      let html = '<table class="table-export"><thead><tr>';
+      header.forEach(h => html += `<th>${h}</th>`);
+      html += '</tr></thead><tbody>';
+      body.forEach(r => {
+        html += '<tr>';
+        r.forEach(c => html += `<td>${c}</td>`);
+        html += '</tr>';
+      });
+      html += '</tbody></table>';
+      return html;
+    }
+    function openExportPreview({ title, html, csv }){
+      currentPreviewCSV = csv;
+      byId('exportPreviewTitle').textContent = title;
+      byId('exportPreviewContent').innerHTML = html;
+      byId('exportPreviewModal').classList.add('open');
+    }
+    function closeExportPreview(){
+      byId('exportPreviewModal').classList.remove('open');
+    }
 
     /* ===== Persistance commandes / archives ===== */
     function saveOrders(){ localStorage.setItem('pizzeria.orders', JSON.stringify(savedOrders)); }
@@ -536,18 +609,12 @@ Vider l’historique</button>
       }, 0);
     }
     function countByKindIn(items, kind){
-  		return (items || []).reduce((s, l) => {
-    		return lineKind(l) === kind ? s + (Number(l.qty) || 0) : s;
-            	 }, 0);
-}
-
-function countDrinksIn(items){
-  return countByKindIn(items, 'drink');
-}
-
-function countDessertsIn(items){
-  return countByKindIn(items, 'dessert');
-}
+      return (items || []).reduce((s, l) => {
+        return lineKind(l) === kind ? s + (Number(l.qty) || 0) : s;
+      }, 0);
+    }
+    function countDrinksIn(items){ return countByKindIn(items, 'drink'); }
+    function countDessertsIn(items){ return countByKindIn(items, 'dessert'); }
 
     function pizzasBookedForSlot(slot, excludeId){
       return savedOrders
@@ -727,8 +794,11 @@ function countDessertsIn(items){
         const lineTotal = line.unitPrice * line.qty; total += lineTotal;
         const tr = document.createElement('tr');
         const tops = (line.toppings && line.toppings.length) ? ' + ' + line.toppings.join(', ') : '';
+        const note = line.note && line.note.trim()
+          ? `<div class="help" style="margin-top:2px"><em>Note&nbsp;:</em> ${line.note}</div>`
+          : '';
         tr.innerHTML = `
-          <td>${line.name}${line.size ? ' ('+line.size+')' : ''}${tops}<div class="help">${euro(line.unitPrice)} / unité</div></td>
+          <td>${line.name}${line.size ? ' ('+line.size+')' : ''}${tops}${note}<div class="help">${euro(line.unitPrice)} / unité</div></td>
           <td>
             <div style="display:flex; gap:6px; align-items:center">
               <button class="icon-btn" title="Moins" aria-label="Moins" onclick="decItem('${line.id}')">−</button>
@@ -843,7 +913,6 @@ function countDessertsIn(items){
       if(matches.length === 1){
         const c = matches[0];
         const currentName = nameInput.value.trim();
-        // On ne change le nom QUE s'il est vide ou déjà identique
         if(!currentName || normalizeName(currentName) === normalizeName(c.name)){
           nameInput.value = c.name;
         }
@@ -874,7 +943,7 @@ function countDessertsIn(items){
       updateFieldHints();
     }
 
-    /* ===== Enregistrement (localStorage) ===== */
+    /* ===== Enregistrement commande ===== */
     function saveOrder(){
       const clientEl = byId('client');
       const slotEl = byId('slot');
@@ -1141,8 +1210,9 @@ function countDessertsIn(items){
       const restored = { ...o, status: 'préparation', restoredAt: new Date().toISOString() };
       savedOrders.unshift(restored);
       saveOrders();
-      renderSavedOrders();
-      renderArchive(byId('archiveStart')?.value || '', byId('archiveEnd')?.value || '');
+      const s = byId('archiveStart')?.value || '';
+      const e = byId('archiveEnd')?.value || '';
+      renderArchive(s, e);
       updateSlotsCapacity();
     }
 
@@ -1158,170 +1228,215 @@ function countDessertsIn(items){
       archivedOrders = archivedOrders.filter(x => x.id !== id);
       saveArchived();
 
-      const input = byId('archiveDateFilter');
-      const currentDay = input ? (input.value || '') : '';
-      renderArchive(currentDay);
+      const s = byId('archiveStart')?.value || '';
+      const e = byId('archiveEnd')?.value || '';
+      renderArchive(s, e);
 
       showHealth('Commande supprimée de l’historique.', 'ok', 2000);
     }
 
-function renderArchive(startDay, endDay) {
-  const area = byId('archiveContent');
-  const countLabel = byId('archiveCount');
+    function renderArchive(startDay, endDay){
+      const area = byId('archiveContent');
+      const countLabel = byId('archiveCount');
+      area.innerHTML = '';
 
-  let list = archivedOrders.slice();
+      // Filtrage sur la période
+      let filtered = archivedOrders.slice();
+      if (startDay || endDay) {
+        filtered = filtered.filter(o => {
+          const day = sameDayISO(o.archivedAt || o.at || Date.now());
+          if (startDay && day < startDay) return false;
+          if (endDay && day > endDay) return false;
+          return true;
+        });
+      }
 
-  // Filtre "du... au..." sur la date de commande (o.at)
-  if (startDay || endDay) {
-    list = list.filter(o => {
-      const day = sameDayISO(o.at || o.archivedAt || Date.now());
-      if (startDay && day < startDay) return false;
-      if (endDay && day > endDay) return false;
-      return true;
-    });
-  }
+      // MODE JOURNALIER REGROUPÉ
+      if (archiveViewMode === 'daily') {
+        const byDay = new Map();
 
-  // 🔽 AJOUTER ÇA
-  list.sort((a, b) => {
-    const da = new Date(a.at || a.archivedAt || 0);
-    const db = new Date(b.at || b.archivedAt || 0);
-    return da - db; // ordre chronologique du plus ancien au plus récent
-  });
+        filtered.forEach(o=>{
+          const day = sameDayISO(o.archivedAt || o.at);
+          let entry = byDay.get(day);
+          if (!entry){
+            entry = { day, orders:0, total:0, pizzas:0 };
+            byDay.set(day, entry);
+          }
+          entry.orders += 1;
+          entry.total  += o.total || 0;
+          entry.pizzas += countPizzasIn(o.items || []);
+        });
 
-  if (countLabel) {
-    if (startDay || endDay) {
-      countLabel.textContent = `${list.length} commande(s) pour la période`;
-    } else {
-      countLabel.textContent = `${list.length} commande(s) au total`;
+        const rowsArr = [...byDay.values()].sort((a,b)=> a.day.localeCompare(b.day));
+
+        if (countLabel){
+          countLabel.textContent = `${rowsArr.length} jour(s) dans la période`;
+        }
+
+        if (!rowsArr.length){
+          area.innerHTML = '<p class="help">Aucune commande livrée dans cette période.</p>';
+          return;
+        }
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'card';
+        wrapper.style.boxShadow = 'none';
+        wrapper.innerHTML = `
+          <div class="body" style="padding:0">
+            <table>
+              <thead>
+                <tr>
+                  <th>Jour</th>
+                  <th style="text-align:right">Commandes</th>
+                  <th style="text-align:right">Pizzas</th>
+                  <th style="text-align:right">Total</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>`;
+        const tbody = wrapper.querySelector('tbody');
+
+        rowsArr.forEach(r=>{
+          const d = new Date(r.day + 'T00:00:00');
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${d.toLocaleDateString('fr-FR')}</td>
+            <td style="text-align:right">${r.orders}</td>
+            <td style="text-align:right">${r.pizzas}</td>
+            <td style="text-align:right">${euro(r.total)}</td>`;
+          tbody.appendChild(tr);
+        });
+
+        area.appendChild(wrapper);
+        return;
+      }
+
+      // MODE DÉTAIL
+      if (countLabel) {
+        countLabel.textContent = `${filtered.length} commande(s) dans la période`;
+      }
+
+      if (!filtered.length) {
+        area.innerHTML = '<p class="help">Aucune commande livrée pour cette sélection.</p>';
+        return;
+      }
+
+      const list = filtered.slice().sort((a,b)=> new Date(a.at) - new Date(b.at));
+
+      const wrapper = document.createElement('div');
+      wrapper.className = 'card';
+      wrapper.style.boxShadow = 'none';
+      wrapper.innerHTML = `
+        <div class="body" style="padding:0">
+          <table>
+            <thead>
+              <tr>
+                <th>Ticket</th>
+                <th>Date/Heure</th>
+                <th>Client</th>
+                <th>Créneau</th>
+                <th style="text-align:right">Total</th>
+                <th style="width:1%"></th>
+                <th style="width:1%"></th>
+                <th style="width:1%"></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>`;
+      const tbody = wrapper.querySelector('tbody');
+
+      list.forEach(o=>{
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${o.ticket||''}</td>
+          <td>${new Date(o.at).toLocaleString('fr-FR')}</td>
+          <td>${o.client}</td>
+          <td>${o.slot}</td>
+          <td style="text-align:right">${euro(o.total||0)}</td>
+          <td><button class="icon-btn" title="Imprimer">🖨️</button></td>
+          <td><button class="icon-btn" title="Restaurer">🔄</button></td>
+          ${archiveDeleteMode
+            ? `<td><button class="icon-btn" title="Supprimer définitivement">🗑️</button></td>`
+            : `<td></td>`}
+        `;
+        const btns = tr.querySelectorAll('button');
+        const printBtn = btns[0];
+        const restoreBtn = btns[1];
+        printBtn.addEventListener('click', ()=> printOrder(o));
+        restoreBtn.addEventListener('click', ()=> restoreOrder(o.id));
+
+        if (archiveDeleteMode && btns[2]) {
+          const delBtn = btns[2];
+          delBtn.addEventListener('click', ()=> deleteArchiveItem(o.id));
+        }
+
+        tbody.appendChild(tr);
+      });
+
+      area.appendChild(wrapper);
     }
-  }
 
-  if (!list.length) {
-    area.innerHTML = '<p class="help">Aucune commande livrée pour cette sélection.</p>';
-    return;
-  }
+    function openArchive(){
+      const startInput = byId('archiveStart');
+      const endInput   = byId('archiveEnd');
+      const today      = todayISO();
 
-  const wrapper = document.createElement('div');
-  wrapper.className = 'card';
-  wrapper.style.boxShadow = 'none';
-  wrapper.innerHTML = `
-    <div class="body" style="padding:0">
-      <table>
-        <thead>
-          <tr>
-            <th>Ticket</th>
-            <th>Date/Heure</th>
-            <th>Client</th>
-            <th>Créneau</th>
-            <th style="text-align:right">Total</th>
-            <th style="width:1%"></th>
-            <th style="width:1%"></th>
-            <th style="width:1%"></th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>`;
-  const tbody = wrapper.querySelector('tbody');
+      if (startInput && endInput) {
+        if (!startInput.value) startInput.value = today;
+        if (!endInput.value)   endInput.value   = today;
 
-  list.forEach(o => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${o.ticket || ''}</td>
-      <td>${new Date(o.at).toLocaleString('fr-FR')}</td>
-      <td>${o.client}</td>
-      <td>${o.slot}</td>
-      <td style="text-align:right">${euro(o.total || 0)}</td>
-      <td><button class="icon-btn" title="Imprimer">🖨️</button></td>
-      <td><button class="icon-btn" title="Restaurer">🔄</button></td>
-      ${archiveDeleteMode
-        ? `<td><button class="icon-btn" title="Supprimer définitivement" data-del="1">🗑️</button></td>`
-        : `<td></td>`}
-    `;
+        const refresh = () => {
+          renderArchive(startInput.value || '', endInput.value || '');
+        };
 
-    const btns = tr.querySelectorAll('button');
-    const printBtn = btns[0];
-    const restoreBtn = btns[1];
-    printBtn.addEventListener('click', () => printOrder(o));
-    restoreBtn.addEventListener('click', () => restoreOrder(o.id));
+        startInput.onchange = refresh;
+        endInput.onchange   = refresh;
+      }
 
-    if (archiveDeleteMode && btns[2]) {
-      const delBtn = btns[2];
-      delBtn.addEventListener('click', () => deleteArchiveItem(o.id));
+      const btnToday = byId('archiveToday');
+      if (btnToday && startInput && endInput) {
+        btnToday.onclick = () => {
+          const t = todayISO();
+          startInput.value = t;
+          endInput.value   = t;
+          renderArchive(t, t);
+        };
+      }
+
+      const btnMonth = byId('archiveThisMonth');
+      if (btnMonth && startInput && endInput) {
+        btnMonth.onclick = () => {
+          const d     = new Date();
+          const year  = d.getFullYear();
+          const month = d.getMonth(); // 0–11
+          const first = new Date(year, month, 1);
+          const last  = new Date(year, month + 1, 0);
+          const toISO = (dd) => dd.toISOString().slice(0, 10);
+          const s = toISO(first);
+          const e = toISO(last);
+          startInput.value = s;
+          endInput.value   = e;
+          renderArchive(s, e);
+        };
+      }
+
+      const clearBtn = byId('clearArchive');
+      if (clearBtn) {
+        clearBtn.style.display = archiveDeleteMode ? 'inline-flex' : 'none';
+      }
+
+      const initStart = startInput?.value || today;
+      const initEnd   = endInput?.value   || today;
+      renderArchive(initStart, initEnd);
+
+      if (typeof syncArchiveViewTabs === 'function') {
+        syncArchiveViewTabs();
+      }
+
+      byId('archiveModal').classList.add('open');
     }
-
-    tbody.appendChild(tr);
-  });
-
-  area.innerHTML = '';
-  area.appendChild(wrapper);
-}
-
-
-    function openArchive() {
-  const startInput = byId('archiveStart');
-  const endInput   = byId('archiveEnd');
-  const today      = todayISO();
-
-  // Initialisation des dates si vide
-  if (startInput && endInput) {
-    if (!startInput.value) startInput.value = today;
-    if (!endInput.value)   endInput.value   = today;
-
-    const refresh = () => {
-      renderArchive(startInput.value || '', endInput.value || '');
-    };
-
-    startInput.onchange = refresh;
-    endInput.onchange   = refresh;
-  }
-
-  // Bouton "Aujourd’hui"
-  const btnToday = byId('archiveToday');
-  if (btnToday && startInput && endInput) {
-    btnToday.onclick = () => {
-      const t = todayISO();
-      startInput.value = t;
-      endInput.value   = t;
-      renderArchive(t, t);
-    };
-  }
-
-  // Bouton "Ce mois"
-  const btnMonth = byId('archiveThisMonth');
-  if (btnMonth && startInput && endInput) {
-    btnMonth.onclick = () => {
-      const d     = new Date();
-      const year  = d.getFullYear();
-      const month = d.getMonth();      // 0–11
-
-      const first = new Date(year, month, 1);
-      const last  = new Date(year, month + 1, 0);
-
-      const toISO = (dd) => dd.toISOString().slice(0, 10);
-
-      const s = toISO(first);
-      const e = toISO(last);
-
-      startInput.value = s;
-      endInput.value   = e;
-      renderArchive(s, e);
-    };
-  }
-
-  // Affichage/masquage du bouton "Vider l’historique" selon le mode suppression
-  const clearBtn = byId('clearArchive');
-  if (clearBtn) {
-    clearBtn.style.display = archiveDeleteMode ? 'inline-flex' : 'none';
-  }
-
-  // Affichage initial (si les inputs ont déjà une valeur on les utilise)
-  const initStart = startInput?.value || today;
-  const initEnd   = endInput?.value   || today;
-  renderArchive(initStart, initEnd);
-
-  byId('archiveModal').classList.add('open');
-}
 
     function clearArchive(){
       if (!archivedOrders.length) { alert('Historique déjà vide.'); return; }
@@ -1329,137 +1444,75 @@ function renderArchive(startDay, endDay) {
       if (!confirm('Confirmer encore : cette action est irréversible.')) return;
       archivedOrders = [];
       saveArchived();
-      renderArchive(byId('archiveStart')?.value || '', byId('archiveEnd')?.value || '');
+      const s = byId('archiveStart')?.value || '';
+      const e = byId('archiveEnd')?.value || '';
+      renderArchive(s, e);
       showHealth('Historique vidé.', 'ok', 2000);
     }
 
-    /* ===== Exports ===== */
-    function exportCSV(){
-      const esc = (v)=>{ 
-        const s = String(v == null ? '' : v); 
-        return /[;"\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s; 
-      };
+    function exportArchiveCSV(){
+      if (!archivedOrders || !archivedOrders.length){
+        alert("Aucune commande livrée à exporter.");
+        return;
+      }
+      const start = byId('archiveStart')?.value || '';
+      const end   = byId('archiveEnd')?.value   || '';
+
+      let filtered = archivedOrders.slice();
+      if (start || end) {
+        filtered = filtered.filter(o => {
+          const day = sameDayISO(o.archivedAt || o.at || Date.now());
+          if (start && day < start) return false;
+          if (end && day > end) return false;
+          return true;
+        });
+      }
+
+      if (!filtered.length){
+        alert("Aucune commande dans cette période.");
+        return;
+      }
+
+      filtered.sort((a,b)=> new Date(a.at) - new Date(b.at));
 
       const rows = [[
-        'date',
+        'date_commande',
         'ticket',
         'client',
-        'telephone',
-        'statut',
-        'créneau',
-        'article',
-        'taille',
-        'qté',
-        'prix_unitaire',
-        'total_ligne',
+        'creneau',
         'total_commande'
       ]];
 
-      const allOrders = [...savedOrders, ...archivedOrders];
+      let totalDay = 0;
 
-      allOrders.forEach(o=>{
-        (o.items||[]).forEach(i=>{
-          const lineTotal = (i.unitPrice||0) * (i.qty||0);
-          rows.push([
-            new Date(o.at).toLocaleString('fr-FR'),
-            o.ticket||'',
-            o.client||'',
-            o.phone||'',
-            o.status||'',
-            o.slot||'',
-            i.name||'',
-            i.size||'',
-            String(i.qty||0),
-            String(i.unitPrice||0).replace('.',','),
-            String(lineTotal).replace('.',','),
-            String(o.total||0).replace('.',',')
-          ]);
-        });
+      filtered.forEach(o => {
+        const dateCmd = new Date(o.at || Date.now());
+        const tot = Number(o.total || 0);
+        totalDay += tot;
+
+        rows.push([
+          dateCmd.toLocaleString('fr-FR'),
+          o.ticket || '',
+          o.client || '',
+          o.slot || '',
+          String(tot).replace('.', ',')
+        ]);
       });
 
-      const csv = rows.map(r => r.map(esc).join(';')).join('\n');
-      const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
-      const url = URL.createObjectURL(blob); const a=document.createElement('a');
-      a.href = url; a.download = `commandes_${new Date().toISOString().slice(0,10)}.csv`; a.click(); URL.revokeObjectURL(url);
+      rows.push([]);
+      rows.push(['', '', '', 'Total periode', String(totalDay).replace('.', ',')]);
+
+      const csv = rowsToCSV(rows);
+      const BOM = '\uFEFF';
+      const blob = new Blob([BOM + csv], { type:'text/csv;charset=utf-8;' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      const label = (start || end) ? `${start || ''}_au_${end || ''}` : todayISO();
+      a.href = url;
+      a.download = `historique_${label}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
     }
-
-function exportArchiveCSV() {
-  if (!archivedOrders || !archivedOrders.length) {
-    alert("Aucune commande livrée à exporter.");
-    return;
-  }
-
-  const start = byId('archiveStart')?.value || '';
-  const end = byId('archiveEnd')?.value || '';
-
-  const esc = (v) => {
-    const s = String(v == null ? '' : v);
-    return /[;"\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
-  };
-
-  const rows = [[
-    'date_commande',
-    'ticket',
-    'client',
-    'creneau',
-    'total_commande'
-  ]];
-
-  let filtered = archivedOrders.slice();
-
-if (start || end) {
-  filtered = filtered.filter(o => {
-    const day = sameDayISO(o.at || o.archivedAt || Date.now());
-    if (start && day < start) return false;
-    if (end && day > end) return false;
-    return true;
-  });
-}
-
-// 🔽 TRI CHRONOLOGIQUE POUR LE CSV
-filtered.sort((a, b) => {
-  const da = new Date(a.at || a.archivedAt || 0);
-  const db = new Date(b.at || b.archivedAt || 0);
-  return da - db;
-});
-
-  if (!filtered.length) {
-    alert("Aucune commande dans cette période.");
-    return;
-  }
-
-  let totalDay = 0;
-
-  filtered.forEach(o => {
-    const dateCmd = new Date(o.at || Date.now());
-    const tot = Number(o.total || 0);
-    totalDay += tot;
-
-    rows.push([
-      dateCmd.toLocaleString('fr-FR'),
-      o.ticket || '',
-      o.client || '',
-      o.slot || '',
-      String(tot).replace('.', ',')
-    ]);
-  });
-
-  // ligne vide + total de la période
-  rows.push([]);
-  rows.push(['', '', '', 'Total période', String(totalDay).replace('.', ',')]);
-
-  const csv = rows.map(r => r.map(esc).join(';')).join('\n');
-
-  const BOM = '\uFEFF';
-  const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  const label = (start || end) ? `${start || ''}_au_${end || ''}` : todayISO();
-  a.href = url;
-  a.download = `historique_commandes_${label}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
 
     /* ===== Fichier clients – affichage Admin / export ===== */
     function renderClientsAdmin(){
@@ -1507,10 +1560,6 @@ filtered.sort((a, b) => {
         alert('Aucun client à exporter.');
         return;
       }
-      const esc = (v)=>{ 
-        const s = String(v == null ? '' : v); 
-        return /[;"\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s; 
-      };
       const rows = [['nom','telephone','commandes','date_creation','derniere_commande']];
       clients.forEach(c=>{
         rows.push([
@@ -1521,8 +1570,9 @@ filtered.sort((a, b) => {
           c.lastOrderAt||''
         ]);
       });
-      const csv = rows.map(r => r.map(esc).join(';')).join('\n');
-      const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+      const csv = rowsToCSV(rows);
+      const BOM = '\uFEFF';
+      const blob = new Blob([BOM + csv], {type:'text/csv;charset=utf-8;'});
       const url = URL.createObjectURL(blob); const a=document.createElement('a');
       a.href = url; a.download = `clients_${new Date().toISOString().slice(0,10)}.csv`; a.click(); URL.revokeObjectURL(url);
     }
@@ -1540,346 +1590,759 @@ filtered.sort((a, b) => {
       showHealth('Fichier clients vidé.', 'ok', 2000);
     }
 
+    /* ===== Stats – helpers ===== */
+    function getOrdersForStatsRange(){
+      const start = byId('statsStart')?.value || '';
+      const end   = byId('statsEnd')?.value   || '';
+      const orders = [...savedOrders, ...archivedOrders].filter(o => {
+        const d = sameDayISO(o.at);
+        if (start && d < start) return false;
+        if (end   && d > end)   return false;
+        return true;
+      });
+      return { start, end, orders };
+    }
+
     /* ===== Stats ===== */
-function computeStatsForRange(startDay, endDay){
-  const allOrders = [...savedOrders, ...archivedOrders].filter(o => {
-    const d = sameDayISO(o.at);
-    if (startDay && d < startDay) return false;
-    if (endDay && d > endDay) return false;
-    return true;
-  });
+    function computeStatsForRange(startDay, endDay){
+      const allOrders = [...savedOrders, ...archivedOrders].filter(o => {
+        const d = sameDayISO(o.at);
+        if (startDay && d < startDay) return false;
+        if (endDay && d > endDay) return false;
+        return true;
+      });
 
-  const totalSales    = allOrders.reduce((s,o)=> s + (o.total||0), 0);
-  const totalPizzas   = allOrders.reduce((s,o)=> s + countPizzasIn(o.items||[]), 0);
-  const totalDrinks   = allOrders.reduce((s,o)=> s + countDrinksIn(o.items||[]), 0);
-  const totalDesserts = allOrders.reduce((s,o)=> s + countDessertsIn(o.items||[]), 0);
-  const ordersCount   = allOrders.length;
+      const totalSales    = allOrders.reduce((s,o)=> s + (o.total||0), 0);
+      const totalPizzas   = allOrders.reduce((s,o)=> s + countPizzasIn(o.items||[]), 0);
+      const totalDrinks   = allOrders.reduce((s,o)=> s + countDrinksIn(o.items||[]), 0);
+      const totalDesserts = allOrders.reduce((s,o)=> s + countDessertsIn(o.items||[]), 0);
+      const ordersCount   = allOrders.length;
 
-  // ===== Stats par créneau (pizzas, boissons, desserts, commandes, total €) =====
-  const perSlotMap = new Map();
-  allOrders.forEach(o => {
-    const slot     = o.slot || '—';
-    const pizzas   = countPizzasIn(o.items || []);
-    const drinks   = countDrinksIn(o.items || []);
-    const desserts = countDessertsIn(o.items || []);
-    const prev     = perSlotMap.get(slot) || { orders:0, pizzas:0, drinks:0, desserts:0, total:0 };
+      const perSlotMap = new Map();
+      allOrders.forEach(o => {
+        const slot     = o.slot || '—';
+        const pizzas   = countPizzasIn(o.items || []);
+        const drinks   = countDrinksIn(o.items || []);
+        const desserts = countDessertsIn(o.items || []);
+        const prev     = perSlotMap.get(slot) || { orders:0, pizzas:0, drinks:0, desserts:0, total:0 };
 
-    prev.orders   += 1;
-    prev.pizzas   += pizzas;
-    prev.drinks   += drinks;
-    prev.desserts += desserts;
-    prev.total    += (o.total || 0);
+        prev.orders   += 1;
+        prev.pizzas   += pizzas;
+        prev.drinks   += drinks;
+        prev.desserts += desserts;
+        prev.total    += (o.total || 0);
 
-    perSlotMap.set(slot, prev);
-  });
+        perSlotMap.set(slot, prev);
+      });
+      const perSlot = [...perSlotMap.entries()]
+        .sort(([a],[b]) => a.localeCompare(b));
 
-  const perSlot = [...perSlotMap.entries()]
-    .sort(([a],[b]) => a.localeCompare(b));
+      const perDayMap = new Map();
+      allOrders.forEach(o => {
+        const d        = sameDayISO(o.at);
+        const pizzas   = countPizzasIn(o.items || []);
+        const drinks   = countDrinksIn(o.items || []);
+        const desserts = countDessertsIn(o.items || []);
+        const prev     = perDayMap.get(d) || { orders:0, pizzas:0, drinks:0, desserts:0, total:0 };
 
-  // ===== Stats par jour (on garde, utile si tu veux un jour faire un export par jour) =====
-  const perDayMap = new Map();
-  allOrders.forEach(o => {
-    const d        = sameDayISO(o.at);
-    const pizzas   = countPizzasIn(o.items || []);
-    const drinks   = countDrinksIn(o.items || []);
-    const desserts = countDessertsIn(o.items || []);
-    const prev     = perDayMap.get(d) || { orders:0, pizzas:0, drinks:0, desserts:0, total:0 };
+        prev.orders   += 1;
+        prev.pizzas   += pizzas;
+        prev.drinks   += drinks;
+        prev.desserts += desserts;
+        prev.total    += (o.total || 0);
 
-    prev.orders   += 1;
-    prev.pizzas   += pizzas;
-    prev.drinks   += drinks;
-    prev.desserts += desserts;
-    prev.total    += (o.total || 0);
+        perDayMap.set(d, prev);
+      });
+      const perDay = [...perDayMap.entries()].sort(([a],[b]) => a.localeCompare(b));
 
-    perDayMap.set(d, prev);
-  });
+      return { 
+        ordersCount, 
+        totalSales, 
+        totalPizzas, 
+        totalDrinks, 
+        totalDesserts,
+        perSlot, 
+        perDay 
+      };
+    }
 
-  const perDay = [...perDayMap.entries()].sort(([a],[b]) => a.localeCompare(b));
+    function renderStatsForRange(startDay, endDay){
+      const s = computeStatsForRange(startDay, endDay);
 
-  return { 
-    ordersCount, 
-    totalSales, 
-    totalPizzas, 
-    totalDrinks, 
-    totalDesserts,
-    perSlot, 
-    perDay 
-  };
-}
+      const periodLabel = (startDay || endDay)
+        ? `<p class="help">Période : ${startDay || '…'} → ${endDay || '…'}</p>`
+        : '';
 
-function renderStatsForRange(startDay, endDay){
-  const s = computeStatsForRange(startDay, endDay);
+      const cards = `
+        ${periodLabel}
+        <div class="stats-cards">
+          <div class="stats-card"><h4>Commandes</h4><div class="v">${s.ordersCount}</div></div>
+          <div class="stats-card"><h4>Pizzas</h4><div class="v">${s.totalPizzas}</div></div>
+          <div class="stats-card"><h4>Total ventes</h4><div class="v">${euro(s.totalSales)}</div></div>
+        </div>
+        <div class="stats-cards">
+          <div class="stats-card"><h4>Boissons</h4><div class="v">${s.totalDrinks}</div></div>
+          <div class="stats-card"><h4>Desserts</h4><div class="v">${s.totalDesserts}</div></div>
+        </div>`;
 
-  const periodLabel = (startDay || endDay)
-    ? `<p class="help">Période : ${startDay || '…'} → ${endDay || '…'}</p>`
-    : '';
+      let table = '';
+      if (s.perSlot.length){
+        const max = Math.max(1, ...s.perSlot.map(([,v]) => v.pizzas));
+        const rows = s.perSlot.map(([slot, stats]) => {
+          const n   = stats.pizzas;
+          const pct = Math.round((n / max) * 100);
+          return `<tr>
+            <td>${slot}</td>
+            <td><div class="bar"><span style="width:${pct}%"></span></div></td>
+            <td style="text-align:right">${n}</td>
+          </tr>`;
+        }).join('');
+        table = `
+          <div class="stats-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Créneau</th>
+                  <th style="width:60%">Répartition</th>
+                  <th style="text-align:right">Pizzas</th>
+                </tr>
+              </thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>`;
+      } else {
+        table = '<p class="help">Aucune commande pour cette période.</p>';
+      }
 
-  const cards = `
-    ${periodLabel}
-    <div class="stats-cards">
-      <div class="stats-card"><h4>Commandes</h4><div class="v">${s.ordersCount}</div></div>
-      <div class="stats-card"><h4>Pizzas</h4><div class="v">${s.totalPizzas}</div></div>
-      <div class="stats-card"><h4>Total ventes</h4><div class="v">${euro(s.totalSales)}</div></div>
-    </div>
-    <div class="stats-cards">
-      <div class="stats-card"><h4>Boissons</h4><div class="v">${s.totalDrinks}</div></div>
-      <div class="stats-card"><h4>Desserts</h4><div class="v">${s.totalDesserts}</div></div>
-    </div>`;
+      byId('statsContent').innerHTML = cards + table;
+    }
 
-  let table = '';
-if (s.perSlot.length){
-  const max = Math.max(1, ...s.perSlot.map(([,v]) => v.pizzas));
-  const rows = s.perSlot.map(([slot, stats]) => {
-    const n   = stats.pizzas;
-    const pct = Math.round((n / max) * 100);
-    return `<tr>
-      <td>${slot}</td>
-      <td><div class="bar"><span style="width:${pct}%"></span></div></td>
-      <td style="text-align:right">${n}</td>
-    </tr>`;
-  }).join('');
-  table = `
-    <div class="stats-table">
-      <table>
-        <thead>
-          <tr>
-            <th>Créneau</th>
-            <th style="width:60%">Répartition</th>
-            <th style="text-align:right">Pizzas</th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>`;
-} else {
-  table = '<p class="help">Aucune commande pour cette période.</p>';
-}
+    function openStats(){
+      const startInput = byId('statsStart');
+      const endInput   = byId('statsEnd');
+      const today      = todayISO();
 
-  byId('statsContent').innerHTML = cards + table;
-}
+      if (startInput && endInput) {
+        if (!startInput.value) startInput.value = today;
+        if (!endInput.value)   endInput.value   = today;
 
-function openStats(){
-  const startInput = byId('statsStart');
-  const endInput   = byId('statsEnd');
-  const today      = todayISO();
+        const refresh = () => {
+          renderStatsForRange(startInput.value || '', endInput.value || '');
+        };
 
-  if (startInput && endInput) {
-    if (!startInput.value) startInput.value = today;
-    if (!endInput.value)   endInput.value   = today;
+        startInput.onchange = refresh;
+        endInput.onchange   = refresh;
+      }
 
-    const refresh = () => {
-      renderStatsForRange(startInput.value || '', endInput.value || '');
-    };
+      const btnToday = byId('statsToday');
+      if (btnToday && startInput && endInput) {
+        btnToday.onclick = () => {
+          const t = todayISO();
+          startInput.value = t;
+          endInput.value   = t;
+          renderStatsForRange(t, t);
+        };
+      }
 
-    startInput.onchange = refresh;
-    endInput.onchange   = refresh;
-  }
+      const btnMonth = byId('statsThisMonth');
+      if (btnMonth && startInput && endInput) {
+        btnMonth.onclick = () => {
+          const d     = new Date();
+          const year  = d.getFullYear();
+          const month = d.getMonth(); // 0–11
+          const first = new Date(year, month, 1);
+          const last  = new Date(year, month + 1, 0);
+          const toISO = (dd) => dd.toISOString().slice(0, 10);
+          const s = toISO(first);
+          const e = toISO(last);
+          startInput.value = s;
+          endInput.value   = e;
+          renderStatsForRange(s, e);
+        };
+      }
 
-  const btnToday = byId('statsToday');
-  if (btnToday && startInput && endInput) {
-    btnToday.onclick = () => {
-      const t = todayISO();
-      startInput.value = t;
-      endInput.value   = t;
-      renderStatsForRange(t, t);
-    };
-  }
+      const initStart = startInput?.value || today;
+      const initEnd   = endInput?.value   || today;
+      renderStatsForRange(initStart, initEnd);
 
-  const btnMonth = byId('statsThisMonth');
-  if (btnMonth && startInput && endInput) {
-    btnMonth.onclick = () => {
-      const d     = new Date();
-      const year  = d.getFullYear();
-      const month = d.getMonth(); // 0–11
+      byId('statsModal').classList.add('open');
+    }
 
-      const first = new Date(year, month, 1);
-      const last  = new Date(year, month + 1, 0);
+    /* ===== Exports Stats ===== */
+    function exportStatsCSV(){
+      const { start, end, orders } = getOrdersForStatsRange();
+      if (!orders.length){
+        alert('Aucune commande dans cette période.');
+        return;
+      }
 
-      const toISO = (dd) => dd.toISOString().slice(0, 10);
+      const perSlotMap = new Map();
+      orders.forEach(o=>{
+        const slot = o.slot || '—';
+        const pizzas   = countPizzasIn(o.items||[]);
+        const drinks   = countDrinksIn(o.items||[]);
+        const desserts = countDessertsIn(o.items||[]);
+        const prev = perSlotMap.get(slot) || {orders:0,pizzas:0,drinks:0,desserts:0,total:0};
+        prev.orders += 1;
+        prev.pizzas += pizzas;
+        prev.drinks += drinks;
+        prev.desserts += desserts;
+        prev.total  += (o.total||0);
+        perSlotMap.set(slot, prev);
+      });
+      const list = [...perSlotMap.entries()].sort(([a],[b])=>a.localeCompare(b));
 
-      const s = toISO(first);
-      const e = toISO(last);
+      const rows = [[
+        'creneau',
+        'commandes',
+        'pizzas',
+        'boissons',
+        'desserts',
+        'total_ventes'
+      ]];
 
-      startInput.value = s;
-      endInput.value   = e;
-      renderStatsForRange(s, e);
-    };
-  }
+      let totalCmd=0, totalPiz=0, totalDrk=0, totalDes=0, totalVte=0;
+      list.forEach(([slot,st])=>{
+        rows.push([
+          slot,
+          String(st.orders),
+          String(st.pizzas),
+          String(st.drinks),
+          String(st.desserts),
+          String(st.total).replace('.',',')
+        ]);
+        totalCmd += st.orders;
+        totalPiz += st.pizzas;
+        totalDrk += st.drinks;
+        totalDes += st.desserts;
+        totalVte += st.total;
+      });
+      rows.push([]);
+      rows.push([
+        'Total periode',
+        String(totalCmd),
+        String(totalPiz),
+        String(totalDrk),
+        String(totalDes),
+        String(totalVte).replace('.',',')
+      ]);
 
-  const initStart = startInput?.value || today;
-  const initEnd   = endInput?.value   || today;
-  renderStatsForRange(initStart, initEnd);
+      const csv  = rowsToCSV(rows);
+      const html = rowsToHTMLTable(rows);
+      const label = (start || end) ? `${start || ''} → ${end || ''}` : todayISO();
+      openExportPreview({
+        title: `Stats par créneau (${label})`,
+        html,
+        csv
+      });
+    }
 
-  byId('statsModal').classList.add('open');
-}
+    function exportDrinksDessertsCSV(){
+      const { start, end, orders } = getOrdersForStatsRange();
 
-function exportStatsCSV(){
-  const start = byId('statsStart')?.value || '';
-  const end   = byId('statsEnd')?.value   || '';
+      if (!orders.length){
+        alert('Aucune commande dans cette période.');
+        return;
+      }
 
-  const s = computeStatsForRange(start, end);
+      const map = new Map();
+      orders.forEach(o => {
+        (o.items || []).forEach(line => {
+          const kind = lineKind(line);
+          if (kind !== 'drink' && kind !== 'dessert') return;
 
-  if (!s.perSlot.length) {
-    alert('Aucune commande dans cette période.');
-    return;
-  }
+          const name = line.name || '???';
+          const qty  = Number(line.qty || 0);
+          const unit = Number(line.unitPrice || 0);
+          const totalLine = qty * unit;
 
-  const esc = (v) => {
-    const str = String(v == null ? '' : v);
-    return /[;"\n]/.test(str) ? '"' + str.replace(/"/g, '""') + '"' : str;
-  };
+          const key = kind + ':' + name;
+          const prev = map.get(key) || { kind, name, qty:0, total:0 };
+          prev.qty   += qty;
+          prev.total += totalLine;
+          map.set(key, prev);
+        });
+      });
 
-  // En-têtes : par créneau, avec boissons & desserts
-  const rows = [[
-    'creneau',
-    'commandes',
-    'pizzas',
-    'boissons',
-    'desserts',
-    'total_ventes'
-  ]];
+      if (!map.size){
+        alert('Aucune boisson ni dessert dans cette période.');
+        return;
+      }
 
-  let totalCmd = 0;
-  let totalPiz = 0;
-  let totalDrk = 0;
-  let totalDes = 0;
-  let totalVte = 0;
+      const rowsData = [...map.values()].sort((a,b) => {
+        if (a.kind !== b.kind) return a.kind.localeCompare(b.kind);
+        return b.qty - a.qty;
+      });
 
-  s.perSlot.forEach(([slot, stats]) => {
-    rows.push([
-      slot,
-      String(stats.orders),
-      String(stats.pizzas),
-      String(stats.drinks),
-      String(stats.desserts),
-      String(stats.total).replace('.', ',')
-    ]);
-    totalCmd += stats.orders;
-    totalPiz += stats.pizzas;
-    totalDrk += stats.drinks;
-    totalDes += stats.desserts;
-    totalVte += stats.total;
-  });
+      const rows = [[
+        'type',
+        'nom',
+        'quantite',
+        'total_ventes'
+      ]];
 
-  // Ligne de total global de la période
-  rows.push([]);
-  rows.push([
-    'Total periode',
-    String(totalCmd),
-    String(totalPiz),
-    String(totalDrk),
-    String(totalDes),
-    String(totalVte).replace('.', ',')
-  ]);
+      let totalQty=0, totalSales=0;
 
-  const csv  = rows.map(r => r.map(esc).join(';')).join('\n');
-  const BOM  = '\uFEFF';
-  const blob = new Blob([BOM + csv], { type:'text/csv;charset=utf-8;' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  const label = (start || end) ? `${start || ''}_au_${end || ''}` : todayISO();
-  a.href = url;
-  a.download = `stats_par_creneau_${label}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
+      rowsData.forEach(r => {
+        const typeLabel = (r.kind === 'drink') ? 'boisson' : 'dessert';
+        rows.push([
+          typeLabel,
+          r.name,
+          String(r.qty),
+          String(r.total).replace('.', ',')
+        ]);
+        totalQty   += r.qty;
+        totalSales += r.total;
+      });
 
-function exportDrinksDessertsCSV(){
-  const start = byId('statsStart')?.value || '';
-  const end   = byId('statsEnd')?.value   || '';
+      rows.push([]);
+      rows.push([
+        'Total periode',
+        '',
+        String(totalQty),
+        String(totalSales).replace('.', ',')
+      ]);
 
-  // On réutilise la même logique de période que computeStatsForRange
-  const allOrders = [...savedOrders, ...archivedOrders].filter(o => {
-    const d = sameDayISO(o.at);
-    if (start && d < start) return false;
-    if (end   && d > end)   return false;
-    return true;
-  });
+      const csv  = rowsToCSV(rows);
+      const html = rowsToHTMLTable(rows);
+      const label = (start || end) ? `${start || ''} → ${end || ''}` : todayISO();
+      openExportPreview({
+        title: `Boissons & desserts (${label})`,
+        html,
+        csv
+      });
+    }
 
-  if (!allOrders.length){
-    alert('Aucune commande dans cette période.');
-    return;
-  }
+    function exportDailyTypesCSV(){
+      const { start, end, orders } = getOrdersForStatsRange();
 
-  // Agrégation par article boisson/dessert
-  const map = new Map(); // clé = kind:name
+      if (!orders.length){
+        alert('Aucune commande dans cette période.');
+        return;
+      }
 
-  allOrders.forEach(o => {
-    (o.items || []).forEach(line => {
-      const kind = lineKind(line); // 'drink', 'dessert', 'pizza', 'other'
-      if (kind !== 'drink' && kind !== 'dessert') return;
+      const perDayType = new Map();
 
-      const name = line.name || '???';
-      const qty  = Number(line.qty || 0);
-      const unit = Number(line.unitPrice || 0);
-      const totalLine = qty * unit;
+      orders.forEach(o => {
+        const day = sameDayISO(o.at);
+        let bucket = perDayType.get(day);
+        if (!bucket){
+          bucket = {};
+          perDayType.set(day, bucket);
+        }
 
-      const key = kind + ':' + name;
-      const prev = map.get(key) || { kind, name, qty:0, total:0 };
-      prev.qty   += qty;
-      prev.total += totalLine;
-      map.set(key, prev);
-    });
-  });
+        (o.items || []).forEach(line => {
+          const kind = lineKind(line) || 'other';
+          const name = line.name || '???';
+          const qty  = Number(line.qty || 0);
+          const unit = Number(line.unitPrice || 0);
+          const totalLine = qty * unit;
 
-  if (!map.size){
-    alert('Aucune boisson ni dessert dans cette période.');
-    return;
-  }
+          if (!bucket[kind]){
+            bucket[kind] = { qty:0, total:0, byName:new Map() };
+          }
+          const k = bucket[kind];
+          k.qty   += qty;
+          k.total += totalLine;
 
-  // On met les lignes dans un tableau trié par type puis nom
-  const rowsData = [...map.values()].sort((a,b) => {
-    if (a.kind !== b.kind) return a.kind.localeCompare(b.kind);
-    return a.name.localeCompare(b.name);
-  });
+          const prevName = k.byName.get(name) || 0;
+          k.byName.set(name, prevName + qty);
+        });
+      });
 
-  const esc = (v) => {
-    const str = String(v == null ? '' : v);
-    return /[;"\n]/.test(str) ? '"' + str.replace(/"/g, '""') + '"' : str;
-  };
+      const rows = [[
+        'date',
+        'type',
+        'total_quantites',
+        'total_ventes',
+        'top3_articles'
+      ]];
 
-  const rows = [[
-    'type',
-    'nom',
-    'quantite',
-    'total_ventes'
-  ]];
+      const typeLabel = {
+        pizza:   'pizza',
+        drink:   'boisson',
+        dessert: 'dessert',
+        other:   'autre'
+      };
 
-  let totalQty   = 0;
-  let totalSales = 0;
+      [...perDayType.entries()]
+        .sort(([d1],[d2]) => d1.localeCompare(d2))
+        .forEach(([day, types]) => {
+          ['pizza','drink','dessert','other'].forEach(kind => {
+            const data = types[kind];
+            if (!data || !data.qty) return;
 
-  rowsData.forEach(r => {
-    const typeLabel = (r.kind === 'drink') ? 'boisson' : 'dessert';
-    rows.push([
-      typeLabel,
-      r.name,
-      String(r.qty),
-      String(r.total).replace('.', ',')
-    ]);
-    totalQty   += r.qty;
-    totalSales += r.total;
-  });
+            const tops = [...data.byName.entries()]
+              .sort((a,b) => b[1] - a[1])
+              .slice(0,3)
+              .map(([name, q]) => `${name} (${q})`)
+              .join(', ');
 
-  // Ligne de total global
-  rows.push([]);
-  rows.push([
-    'Total periode',
-    '',
-    String(totalQty),
-    String(totalSales).replace('.', ',')
-  ]);
+            rows.push([
+              day,
+              typeLabel[kind] || kind,
+              String(data.qty),
+              String(data.total).replace('.', ','),
+              tops
+            ]);
+          });
+        });
 
-  const csv = rows.map(r => r.map(esc).join(';')).join('\n');
-  const BOM = '\uFEFF';
-  const blob = new Blob([BOM + csv], { type:'text/csv;charset=utf-8;' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  const label = (start || end) ? `${start || ''}_au_${end || ''}` : todayISO();
-  a.href = url;
-  a.download = `stats_boissons_desserts_${label}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
+      const csv  = rowsToCSV(rows);
+      const html = rowsToHTMLTable(rows);
+      const label = (start || end) ? `${start || ''} → ${end || ''}` : todayISO();
+      openExportPreview({
+        title: `Résumé journalier (${label})`,
+        html,
+        csv
+      });
+    }
+
+    function exportTopClients(){
+      const { start, end, orders } = getOrdersForStatsRange();
+
+      if (!orders.length){
+        alert('Aucune commande dans cette période.');
+        return;
+      }
+
+      const map = new Map();
+
+      orders.forEach(o => {
+        const name = (o.client || '').trim() || 'Client inconnu';
+        const phone = (o.phone || '').trim();
+        const key = name + '|' + phone;
+
+        const total = Number(o.total || 0);
+        const at = o.at || new Date().toISOString();
+
+        const prev = map.get(key) || {
+          name,
+          phone,
+          orders: 0,
+          total: 0,
+          lastAt: at
+        };
+        prev.orders += 1;
+        prev.total  += total;
+        if (at > prev.lastAt) prev.lastAt = at;
+
+        map.set(key, prev);
+      });
+
+      const list = [...map.values()].sort((a,b) => {
+        if (b.orders !== a.orders) return b.orders - a.orders;
+        return b.total - a.total;
+      });
+
+      const rows = [[
+        'client',
+        'telephone',
+        'nb_commandes',
+        'panier_moyen',
+        'derniere_commande'
+      ]];
+
+      list.forEach(c => {
+        const avg = c.orders ? (c.total / c.orders) : 0;
+        rows.push([
+          c.name,
+          c.phone,
+          String(c.orders),
+          String(avg.toFixed(2)).replace('.', ','),
+          new Date(c.lastAt).toLocaleString('fr-FR')
+        ]);
+      });
+
+      const csv  = rowsToCSV(rows);
+      const html = rowsToHTMLTable(rows);
+      const label = (start || end) ? `${start || ''} → ${end || ''}` : todayISO();
+      openExportPreview({
+        title: `Top clients (${label})`,
+        html,
+        csv
+      });
+    }
+
+    function exportAvgSlotCSV(){
+      const { start, end, orders } = getOrdersForStatsRange();
+      if (!orders.length){
+        alert('Aucune commande dans cette période.');
+        return;
+      }
+
+      const map = new Map();
+      orders.forEach(o => {
+        const slot = o.slot || '—';
+        const t = Number(o.total || 0);
+        const prev = map.get(slot) || { orders:0, total:0 };
+        prev.orders += 1;
+        prev.total  += t;
+        map.set(slot, prev);
+      });
+
+      const list = [...map.entries()].sort(([a],[b]) => a.localeCompare(b));
+
+      const rows = [[
+        'creneau',
+        'panier_moyen',
+        'nb_commandes',
+        'total_ventes'
+      ]];
+
+      list.forEach(([slot, stats]) => {
+        const avg = stats.orders ? (stats.total / stats.orders) : 0;
+        rows.push([
+          slot,
+          String(avg.toFixed(2)).replace('.', ','),
+          String(stats.orders),
+          String(stats.total).replace('.', ',')
+        ]);
+      });
+
+      const csv  = rowsToCSV(rows);
+      const html = rowsToHTMLTable(rows);
+      const label = (start || end) ? `${start || ''} → ${end || ''}` : todayISO();
+      openExportPreview({
+        title: `Panier moyen par créneau (${label})`,
+        html,
+        csv
+      });
+    }
+
+    function exportProductMixCSV(){
+      const { start, end, orders } = getOrdersForStatsRange();
+
+      if (!orders.length){
+        alert('Aucune commande dans cette période.');
+        return;
+      }
+
+      const perProduct = new Map();
+      const totalByKind = { pizza:0, drink:0, dessert:0, other:0 };
+
+      orders.forEach(o => {
+        (o.items || []).forEach(line => {
+          const kind = lineKind(line) || 'other';
+          const name = line.name || '???';
+          const qty  = Number(line.qty || 0);
+          const unit = Number(line.unitPrice || 0);
+          const totalLine = qty * unit;
+
+          const key = kind + ':' + name;
+          const prev = perProduct.get(key) || { kind, name, qty:0, total:0 };
+          prev.qty   += qty;
+          prev.total += totalLine;
+          perProduct.set(key, prev);
+
+          if (totalByKind[kind] == null) totalByKind[kind] = 0;
+          totalByKind[kind] += qty;
+        });
+      });
+
+      if (!perProduct.size){
+        alert('Aucun produit dans cette période.');
+        return;
+      }
+
+      const typeLabel = {
+        pizza:   'pizza',
+        drink:   'boisson',
+        dessert: 'dessert',
+        other:   'autre'
+      };
+
+      const list = [...perProduct.values()].sort((a,b) => {
+        if (a.kind !== b.kind) return a.kind.localeCompare(b.kind);
+        return b.qty - a.qty;
+      });
+
+      const rows = [[
+        'type',
+        'produit',
+        'quantite',
+        'pourcentage_categorie',
+        'prix_moyen'
+      ]];
+
+      list.forEach(p => {
+        const totalKindQty = totalByKind[p.kind] || 1;
+        const pct = (p.qty / totalKindQty) * 100;
+        const avg = p.qty ? (p.total / p.qty) : 0;
+
+        rows.push([
+          typeLabel[p.kind] || p.kind,
+          p.name,
+          String(p.qty),
+          String(pct.toFixed(1)).replace('.', ','),
+          String(avg.toFixed(2)).replace('.', ',')
+        ]);
+      });
+
+      const csv  = rowsToCSV(rows);
+      const html = rowsToHTMLTable(rows);
+      const label = (start || end) ? `${start || ''} → ${end || ''}` : todayISO();
+      openExportPreview({
+        title: `Mix produits (${label})`,
+        html,
+        csv
+      });
+    }
+
+    function exportWeekdayCSV(){
+      const { start, end, orders } = getOrdersForStatsRange();
+
+      if (!orders.length){
+        alert('Aucune commande dans cette période.');
+        return;
+      }
+
+      const names = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+      const stats = Array.from({length:7}, (_,i) => ({ orders:0, total:0 }));
+
+      orders.forEach(o => {
+        const d = new Date(o.at);
+        const dow = d.getDay();
+        const t = Number(o.total || 0);
+        stats[dow].orders += 1;
+        stats[dow].total  += t;
+      });
+
+      const rows = [[
+        'jour',
+        'nb_commandes',
+        'total_ventes',
+        'panier_moyen'
+      ]];
+
+      names.forEach((name, idx) => {
+        const st = stats[idx];
+        if (!st.orders && !st.total) return;
+        const avg = st.orders ? (st.total / st.orders) : 0;
+        rows.push([
+          name,
+          String(st.orders),
+          String(st.total).replace('.', ','),
+          String(avg.toFixed(2)).replace('.', ',')
+        ]);
+      });
+
+      const csv  = rowsToCSV(rows);
+      const html = rowsToHTMLTable(rows);
+      const label = (start || end) ? `${start || ''} → ${end || ''}` : todayISO();
+      openExportPreview({
+        title: `Ventes par jour de la semaine (${label})`,
+        html,
+        csv
+      });
+    }
+
+    function exportTicketsChronoCSV(){
+      const { start, end, orders } = getOrdersForStatsRange();
+
+      if (!orders.length){
+        alert('Aucune commande dans cette période.');
+        return;
+      }
+
+      const list = orders.slice().sort((a,b) => {
+        return new Date(a.at) - new Date(b.at);
+      });
+
+      const rows = [[
+        'date',
+        'heure',
+        'ticket',
+        'client',
+        'total',
+        'nb_articles'
+      ]];
+
+      list.forEach(o => {
+        const d = new Date(o.at);
+        const dateStr = d.toISOString().slice(0,10);
+        const timeStr = d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+        const itemsCount = (o.items || []).reduce((s,l)=> s + (Number(l.qty)||0), 0);
+
+        rows.push([
+          dateStr,
+          timeStr,
+          o.ticket || '',
+          o.client || '',
+          String(o.total || 0).replace('.', ','),
+          String(itemsCount)
+        ]);
+      });
+
+      const csv  = rowsToCSV(rows);
+      const html = rowsToHTMLTable(rows);
+      const label = (start || end) ? `${start || ''} → ${end || ''}` : todayISO();
+      openExportPreview({
+        title: `Tickets chronologiques (${label})`,
+        html,
+        csv
+      });
+    }
+
+    function exportMonthlyCompareCSV(){
+      const all = [...savedOrders, ...archivedOrders];
+      if (!all.length){
+        alert('Aucune commande.');
+        return;
+      }
+
+      const perMonth = new Map();
+
+      all.forEach(o => {
+        const d = new Date(o.at);
+        const y = d.getFullYear();
+        const m = String(d.getMonth()+1).padStart(2,'0');
+        const key = `${y}-${m}`;
+        const pizzas = countPizzasIn(o.items || []);
+        const t = Number(o.total || 0);
+
+        const prev = perMonth.get(key) || { month:key, orders:0, total:0, pizzas:0 };
+        prev.orders += 1;
+        prev.total  += t;
+        prev.pizzas += pizzas;
+        perMonth.set(key, prev);
+      });
+
+      const months = [...perMonth.values()].sort((a,b) => a.month.localeCompare(b.month));
+
+      const rows = [[
+        'mois',
+        'commandes',
+        'total_ventes',
+        'pizzas',
+        'variation_vs_mois_prec_%'
+      ]];
+
+      for (let i=0; i<months.length; i++){
+        const cur = months[i];
+        const prev = months[i-1];
+        let varPct = '';
+        if (prev && prev.total){
+          const diff = ((cur.total - prev.total) / prev.total) * 100;
+          varPct = String(diff.toFixed(1)).replace('.', ',');
+        }
+        rows.push([
+          cur.month,
+          String(cur.orders),
+          String(cur.total).replace('.', ','),
+          String(cur.pizzas),
+          varPct
+        ]);
+      }
+
+      const csv  = rowsToCSV(rows);
+      const html = rowsToHTMLTable(rows);
+      openExportPreview({
+        title: 'Comparatif mensuel',
+        html,
+        csv
+      });
+    }
 
     /* ===== Admin JSON + Déverrouillage ===== */
     function applyAdmin(){
@@ -1920,6 +2383,7 @@ function exportDrinksDessertsCSV(){
       renderClientsAdmin();
       byId('adminModal').classList.add('open');
     }
+
     function syncUnlockToggle(){
       const ck = byId('unlockToggle');
       if (!ck) return;
@@ -1930,12 +2394,85 @@ function exportDrinksDessertsCSV(){
     /* ===== Listeners globaux ===== */
     byId('resetOrder').addEventListener('click', resetOrder);
     byId('saveOrder').addEventListener('click', saveOrder);
+
     byId('exportJSON').addEventListener('click', ()=>{
-      const blob = new Blob([JSON.stringify(savedOrders,null,2)], {type:'application/json'});
-      const url = URL.createObjectURL(blob); const a=document.createElement('a');
-      a.href=url; a.download=`commandes_${new Date().toISOString().slice(0,10)}.json`; a.click(); URL.revokeObjectURL(url);
+
+      // Les données complètes à sauvegarder
+      const jsonStr = JSON.stringify(savedOrders, null, 2);
+
+      // ➜ on mémorise la date du backup
+      const snap = {
+        createdAt: new Date().toISOString()
+      };
+      localStorage.setItem('pizzeria.fullBackup.latest', JSON.stringify(snap));
+      updateLastBackupDisplay();
+
+      const blob = new Blob([jsonStr], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+
+      const d = new Date();
+      const stamp =
+        d.getFullYear() + "-" +
+        String(d.getMonth()+1).padStart(2,"0") + "-" +
+        String(d.getDate()).padStart(2,"0") + "_" +
+        String(d.getHours()).padStart(2,"0") + "h" +
+        String(d.getMinutes()).padStart(2,"0");
+
+      a.download = `Backup_Pizzeria_${stamp}.json`;
+
+      a.click();
+      URL.revokeObjectURL(url);
     });
-    byId('exportCSV').addEventListener('click', exportCSV);
+
+    byId('exportCSV').addEventListener('click', ()=>{
+      const rows = [[
+        'date',
+        'ticket',
+        'client',
+        'telephone',
+        'statut',
+        'creneau',
+        'article',
+        'taille',
+        'qté',
+        'prix_unitaire',
+        'total_ligne',
+        'total_commande'
+      ]];
+      
+      const allOrders = [...savedOrders, ...archivedOrders];
+      allOrders.forEach(o=>{
+        (o.items||[]).forEach(i=>{
+          const lineTotal = (i.unitPrice||0) * (i.qty||0);
+          rows.push([
+            new Date(o.at).toLocaleString('fr-FR'),
+            o.ticket||'',
+            o.client||'',
+            o.phone||'',
+            o.status||'',
+            o.slot||'',
+            i.name||'',
+            i.size||'',
+            String(i.qty||0),
+            String(i.unitPrice||0).replace('.',','),
+            String(lineTotal).replace('.',','),
+            String(o.total||0).replace('.',',')
+          ]);
+        });
+      });
+
+      const csv = rowsToCSV(rows);
+      const BOM = '\uFEFF';
+      const blob = new Blob([BOM + csv], {type:'text/csv;charset=utf-8;'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `commandes_${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
 
     byId('openAdmin').addEventListener('click', ()=>{
       openAdmin();
@@ -1972,12 +2509,11 @@ function exportDrinksDessertsCSV(){
     // Raccourci : Shift + R pour mode suppression dans l’historique
     document.addEventListener('keydown', (e)=>{
       if (e.shiftKey && (e.key === 'R' || e.key === 'r')) {
-
         archiveDeleteMode = !archiveDeleteMode;
 
         const s = byId('archiveStart')?.value || '';
-	const e = byId('archiveEnd')?.value || '';
-	renderArchive(s, e);
+        const eDay = byId('archiveEnd')?.value || '';
+        renderArchive(s, eDay);
 
         const clearBtn = byId('clearArchive');
         if (clearBtn) {
@@ -1999,9 +2535,9 @@ function exportDrinksDessertsCSV(){
       applyTheme(next, true);
     });
 
-    document.querySelectorAll('.tab').forEach(btn=>{
+    document.querySelectorAll('.tab[data-cat]').forEach(btn=>{
       btn.addEventListener('click', ()=>{
-        document.querySelectorAll('.tab').forEach(b=> b.classList.remove('active'));
+        document.querySelectorAll('.tab[data-cat]').forEach(b=> b.classList.remove('active'));
         btn.classList.add('active');
         currentCategory = btn.getAttribute('data-cat');
         renderMenu();
@@ -2056,16 +2592,67 @@ function exportDrinksDessertsCSV(){
     });
 
     const _os = byId('openStats'); if(_os) _os.addEventListener('click', openStats);
-    const _cs = byId('closeStats'); if(_cs) _cs.addEventListener('click', ()=> 	byId('statsModal').classList.remove('open'));
-    const _exs = byId('exportStats');
-	if (_exs) _exs.addEventListener('click', exportStatsCSV);
-    const _exbd = byId('exportDrinksDesserts');
-	if (_exbd) _exbd.addEventListener('click', exportDrinksDessertsCSV);
+    const _cs = byId('closeStats'); if(_cs) _cs.addEventListener('click', ()=> byId('statsModal').classList.remove('open'));
+
+    const _exs = byId('exportStats'); if (_exs) _exs.addEventListener('click', exportStatsCSV);
+    const _exbd = byId('exportDrinksDesserts'); if (_exbd) _exbd.addEventListener('click', exportDrinksDessertsCSV);
+    const _exDaily = byId('exportDailyTypes'); if (_exDaily) _exDaily.addEventListener('click', exportDailyTypesCSV);
+    const _exTopClients = byId('exportTopClients'); if (_exTopClients) _exTopClients.addEventListener('click', exportTopClients);
+    const _exAvgSlot = byId('exportAvgSlot'); if (_exAvgSlot) _exAvgSlot.addEventListener('click', exportAvgSlotCSV);
+    const _exMix = byId('exportProductMix'); if (_exMix) _exMix.addEventListener('click', exportProductMixCSV);
+    const _exWeek = byId('exportWeekday'); if (_exWeek) _exWeek.addEventListener('click', exportWeekdayCSV);
+    const _exTickets = byId('exportTicketsChrono'); if (_exTickets) _exTickets.addEventListener('click', exportTicketsChronoCSV);
+    const _exMonth = byId('exportMonthlyCompare'); if (_exMonth) _exMonth.addEventListener('click', exportMonthlyCompareCSV);
 
     const _oa = byId('openArchive'); if(_oa) _oa.addEventListener('click', openArchive);
     const _ca = byId('closeArchive'); if(_ca) _ca.addEventListener('click', ()=> byId('archiveModal').classList.remove('open'));
     const _clear = byId('clearArchive'); if (_clear) _clear.addEventListener('click', clearArchive);
     const _exportArch = byId('exportArchive'); if (_exportArch) _exportArch.addEventListener('click', exportArchiveCSV);
+
+    const _viewDetail = byId('archiveViewDetail');
+    const _viewDaily  = byId('archiveViewDaily');
+
+    function syncArchiveViewTabs(){
+      if (!_viewDetail || !_viewDaily) return;
+      _viewDetail.classList.toggle('active', archiveViewMode === 'detail');
+      _viewDaily.classList.toggle('active', archiveViewMode === 'daily');
+    }
+
+    if (_viewDetail) {
+      _viewDetail.addEventListener('click', ()=>{
+        archiveViewMode = 'detail';
+        syncArchiveViewTabs();
+        const s = byId('archiveStart')?.value || '';
+        const e = byId('archiveEnd')?.value || '';
+        renderArchive(s, e);
+      });
+    }
+
+    if (_viewDaily) {
+      _viewDaily.addEventListener('click', ()=>{
+        archiveViewMode = 'daily';
+        syncArchiveViewTabs();
+        const s = byId('archiveStart')?.value || '';
+        const e = byId('archiveEnd')?.value || '';
+        renderArchive(s, e);
+      });
+    }
+
+    // Modale aperçu exports
+    const _closePrev = byId('closeExportPreview');
+    if (_closePrev) _closePrev.addEventListener('click', closeExportPreview);
+    const _dlPrev = byId('exportPreviewDownload');
+    if (_dlPrev) _dlPrev.addEventListener('click', () => {
+      if (!currentPreviewCSV) return;
+      const BOM = '\uFEFF';
+      const blob = new Blob([BOM + currentPreviewCSV], { type:'text/csv;charset=utf-8;' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href = url;
+      a.download = 'export.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
 
     window.addEventListener('error', (e)=>{ try{ showHealth('Erreur JS : '+ e.message, 'error'); }catch(_){} });
     window.addEventListener('unhandledrejection', (e)=>{ try{ const msg = (e.reason && (e.reason.message||e.reason)) || 'Rejet de promesse'; showHealth('Erreur : '+ msg, 'error'); }catch(_){} });
@@ -2082,6 +2669,27 @@ function exportDrinksDessertsCSV(){
       }catch(err){ showHealth('Test: '+err.message, 'error'); }
     }
 
+    function updateLastBackupDisplay(){
+      const info = byId('lastBackupInfo');
+      if (!info) return;
+
+      const raw = localStorage.getItem('pizzeria.fullBackup.latest');
+      if (!raw){
+        info.textContent = "Aucune sauvegarde encore effectuée";
+        return;
+      }
+
+      try {
+        const snap = JSON.parse(raw);
+        const d = new Date(snap.createdAt || Date.now());
+        const date = d.toLocaleDateString('fr-FR');
+        const time = d.toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'});
+        info.textContent = `Dernière sauvegarde : ${date} à ${time}`;
+      } catch(e){
+        info.textContent = "Dernière sauvegarde : impossible de lire les données";
+      }
+    }
+
     function boot(){
       try{
         applyTheme(getPreferredTheme(), false);
@@ -2095,6 +2703,7 @@ function exportDrinksDessertsCSV(){
         buildSlots();
         updateFieldHints();
         setTimeout(selfTests, 50);
+        updateLastBackupDisplay();
       }catch(e){
         console.error(e);
         showHealth('Erreur au démarrage : '+ (e.message||e), 'error');
