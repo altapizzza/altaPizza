@@ -1051,6 +1051,28 @@
     /* ===== Helpers exports & stats ===== */
     let currentPreviewCSV = ''; // pour la modale d’aperçu exports
 
+	function toggleArchiveDeleteMode(){
+  archiveDeleteMode = !archiveDeleteMode;
+
+  const s = byId('archiveStart')?.value || '';
+  const eDay = byId('archiveEnd')?.value || '';
+  renderArchive(s, eDay);
+
+  const clearBtn = byId('clearArchive');
+  if (clearBtn) {
+    clearBtn.style.display = archiveDeleteMode ? 'inline-flex' : 'none';
+  }
+
+  showHealth(
+    archiveDeleteMode
+      ? 'Mode suppression (historique) ACTIVÉ'
+      : 'Mode suppression (historique) désactivé',
+    archiveDeleteMode ? 'ok' : 'error',
+    1800
+  );
+}
+
+
     function csvEscape(v){
       const str = String(v == null ? '' : v);
       return /[;"\n]/.test(str) ? '"' + str.replace(/"/g, '""') + '"' : str;
@@ -3087,29 +3109,13 @@ enableSecretLongPressDeleteMode();
       }
     });
 
-    // Raccourci : Shift + R pour mode suppression dans l’historique
-    document.addEventListener('keydown', (e)=>{
-      if (e.shiftKey && (e.key === 'R' || e.key === 'r')) {
-        archiveDeleteMode = !archiveDeleteMode;
+    // Raccourci : Shift + R pour mode suppression dans l’historique (ordinateur)
+document.addEventListener('keydown', (e)=>{
+  if (e.shiftKey && (e.key === 'R' || e.key === 'r')) {
+    toggleArchiveDeleteMode();
+  }
+});
 
-        const s = byId('archiveStart')?.value || '';
-        const eDay = byId('archiveEnd')?.value || '';
-        renderArchive(s, eDay);
-
-        const clearBtn = byId('clearArchive');
-        if (clearBtn) {
-          clearBtn.style.display = archiveDeleteMode ? 'inline-flex' : 'none';
-        }
-
-        showHealth(
-          archiveDeleteMode
-            ? 'Mode suppression (historique) ACTIVÉ'
-            : 'Mode suppression (historique) désactivé',
-          archiveDeleteMode ? 'ok' : 'error',
-          1800
-        );
-      }
-    });
 
     byId('toggleTheme').addEventListener('click', ()=>{
       const next = document.documentElement.classList.contains('dark') ? 'light' : 'dark';
@@ -3189,6 +3195,42 @@ enableSecretLongPressDeleteMode();
     const _ca = byId('closeArchive'); if(_ca) _ca.addEventListener('click', ()=> byId('archiveModal').classList.remove('open'));
     const _clear = byId('clearArchive'); if (_clear) _clear.addEventListener('click', clearArchive);
     const _exportArch = byId('exportArchive'); if (_exportArch) _exportArch.addEventListener('click', exportArchiveCSV);
+
+// 🕒 Appui long (4s) sur "Exporter (CSV)" pour activer le mode suppression (iPad / tactile)
+function setupExportLongPress(){
+  const btn = byId('exportArchive'); // le bouton dans l’historique
+  if (!btn) return;
+
+  let timer = null;
+  let pressed = false;
+
+  const startPress = () => {
+    pressed = true;
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      if (pressed) {
+        toggleArchiveDeleteMode();
+      }
+    }, 4000); // 4 secondes
+  };
+
+  const cancelPress = () => {
+    pressed = false;
+    if (timer){
+      clearTimeout(timer);
+      timer = null;
+    }
+  };
+
+  btn.addEventListener('mousedown', startPress);
+  btn.addEventListener('touchstart', startPress);
+
+  btn.addEventListener('mouseup', cancelPress);
+  btn.addEventListener('mouseleave', cancelPress);
+  btn.addEventListener('touchend', cancelPress);
+  btn.addEventListener('touchcancel', cancelPress);
+}
+
 
     const _viewDetail = byId('archiveViewDetail');
     const _viewDaily  = byId('archiveViewDaily');
@@ -3283,7 +3325,8 @@ enableSecretLongPressDeleteMode();
         renderOrderTable();
         buildSlots();
         updateFieldHints();
-        setTimeout(selfTests, 50);
+        setupExportLongPress(); 
+		setTimeout(selfTests, 50);
         updateLastBackupDisplay();
       }catch(e){
         console.error(e);
