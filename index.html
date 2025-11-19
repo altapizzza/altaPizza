@@ -348,28 +348,49 @@
     font-weight:700;
   }
 
-  .quick-actions{display:flex; gap:6px; margin-top:4px; flex-direction:column;}
-  .chip-btn{
-    border:1px solid rgba(209,213,219,1);
-    background:#fff;
-    padding:5px 9px;
-    border-radius:999px;
-    cursor:pointer;
-    font-size:12px;
-    font-weight:600;
-    white-space:nowrap;
-  }
-  .chip-btn:hover{
-    border-color:var(--brand);
-    color:var(--brand);
-  }
-  .chip-btn.emph{
-    background:var(--brand-soft);
-    border-color:var(--brand);
-    color:var(--brand);
-  }
-  .dark .chip-btn{background:#020617; border-color:#374151; color:#e5e7eb;}
-  .dark .chip-btn.emph{background:#4b1017;}
+ .quick-actions{
+  display:flex;
+  gap:10px;              /* espace entre les boutons */
+  flex-direction:row;    /* Tous sur la même ligne */
+  margin-top:8px;
+}
+
+ /* Boutons Grande / Petite / Supp */
+.chip-btn{
+  flex:1;
+  text-align:center;
+  border:1px solid rgba(209,213,219,1);
+  background:#fff;
+  padding:12px 0;               /* Plus haut */
+  border-radius:14px;
+  cursor:pointer;
+  font-size:15px;               /* Plus grand */
+  font-weight:700;              /* Plus visible */
+  white-space:nowrap;
+  min-width:80px;               /* Largeur mini */
+  transition:all .15s ease;
+}
+
+.chip-btn:hover{
+  border-color:var(--brand);
+  color:var(--brand);
+  transform:translateY(-2px);
+}
+
+.chip-btn.emph{
+  background:var(--brand-soft);
+  border-color:var(--brand);
+  color:var(--brand);
+}
+
+.dark .chip-btn{
+  background:#020617;
+  border-color:#374151;
+  color:#e5e7eb;
+}
+.dark .chip-btn.emph{
+  background:#4b1017;
+}
 
   /* Tableau panier */
   table{width:100%; border-collapse:collapse;}
