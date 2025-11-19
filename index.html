@@ -200,34 +200,58 @@
   }
   .card .body{padding:14px 16px 16px;}
 
-  /* Tabs catégories menu */
-  .tabs{
-    display:flex;
-    gap:6px;
-    padding:2px;
-    border-radius:999px;
-    background:#f3f4f6;
-  }
-  .dark .tabs{background:#020617;}
-  .tab{
-    border:0;
-    background:transparent;
-    padding:6px 10px;
-    border-radius:999px;
-    cursor:pointer;
-    font-size:13px;
-    font-weight:600;
-    color:#6b7280;
-    white-space:nowrap;
-  }
-  .tab.active{
-    background:#fff;
-    color:var(--brand);
-    box-shadow:0 0 0 1px rgba(248,113,113,.2);
-  }
-  .dark .tab.active{
-    background:#111827;
-  }
+ /* Tabs catégories menu */
+.tabs{
+  display:flex;
+  gap:10px;                /* un peu plus d’espace entre les boutons */
+  padding:4px;
+  border-radius:24px;      /* plus arrondi */
+  background:#f3f4f6;
+}
+.dark .tabs{
+  background:#020617;
+}
+
+.tab{
+  border:0;
+  background:#ffffff;      /* vrai bouton, plus lisible */
+  padding:12px 20px;       /* beaucoup plus grand */
+  border-radius:999px;     /* pilule bien ronde */
+  cursor:pointer;
+  font-size:15px;          /* texte plus gros */
+  font-weight:700;         /* plus visible */
+  color:#4b5563;
+  white-space:nowrap;
+  box-shadow:0 2px 6px rgba(0,0,0,.08);
+  transition:
+    transform .12s ease,
+    box-shadow .12s ease,
+    background-color .12s ease,
+    color .12s ease;
+}
+
+/* Survol : effet léger “tactile” */
+.tab:hover{
+  transform:translateY(-2px);
+  box-shadow:0 6px 14px rgba(0,0,0,.12);
+}
+
+/* Clic : petit shrink */
+.tab:active{
+  transform:scale(0.95);
+  box-shadow:0 0 0 3px rgba(0,0,0,.08) inset;
+}
+
+/* Onglet actif (ex: Pizzas sélectionné) */
+.tab.active{
+  background:var(--brand);
+  color:#fff;
+  box-shadow:0 8px 18px -8px rgba(248,113,113,.7);
+}
+.dark .tab.active{
+  background:var(--brand);
+  color:#fff;
+}
 
   /* Inputs principaux (client / téléphone / créneau) */
   #client,#phone,#slot{
@@ -354,8 +378,7 @@
   flex-direction:row;    /* Tous sur la même ligne */
   margin-top:8px;
 }
-
- /* Boutons Grande / Petite / Supp */
+/* Boutons Grande / Petite / Supp */
 .chip-btn{
   flex:1;
   text-align:center;
@@ -368,13 +391,25 @@
   font-weight:700;              /* Plus visible */
   white-space:nowrap;
   min-width:80px;               /* Largeur mini */
-  transition:all .15s ease;
+  transition:
+    transform .12s ease,
+    box-shadow .12s ease,
+    background-color .12s ease,
+    border-color .12s ease,
+    color .12s ease;
 }
 
 .chip-btn:hover{
   border-color:var(--brand);
   color:var(--brand);
   transform:translateY(-2px);
+  box-shadow:0 4px 10px rgba(0,0,0,.12);
+}
+
+/* Effet de clic */
+.chip-btn:active{
+  transform:scale(0.92) translateY(0);
+  box-shadow:0 0 0 2px rgba(0,0,0,.08) inset;
 }
 
 .chip-btn.emph{
@@ -383,11 +418,25 @@
   color:var(--brand);
 }
 
+/* Bouton PETITE en bleu */
+.chip-btn[data-size="petite"]{
+  background:#2563eb;      /* bleu */
+  border-color:#1d4ed8;
+  color:#fff;
+}
+
+.dark .chip-btn[data-size="petite"]{
+  background:#1d4ed8;
+  border-color:#1d4ed8;
+  color:#e5e7eb;
+}
+
 .dark .chip-btn{
   background:#020617;
   border-color:#374151;
   color:#e5e7eb;
 }
+
 .dark .chip-btn.emph{
   background:#4b1017;
 }
@@ -659,7 +708,7 @@
         </div>
       </section>
 
-      <!-- Panier -->
+       <!-- Panier -->
       <aside class="card">
         <header><h2>Panier</h2></header>
         <div class="body">
@@ -671,19 +720,29 @@
                 </thead>
                 <tbody></tbody>
                 <tfoot>
-                  <tr><td colspan="2">Total</td><td id="grandTotal" style="font-size:18px">0,00€</td><td></td></tr>
-                </tfoot>
-              </table>
-            </div>
-          </div>
-          <p class="help">Commande par défaut : <strong>à emporter</strong>.</p>
-          <button class="btn ghost" id="exportJSON">Sauvegarde System</button>
-          <div id="lastBackupInfo" style="font-size: 0.8rem; opacity: 0.7; margin-top: 4px;"></div>
-          <button class="btn ghost" id="exportCSV">Exporter (CSV)</button>
-        </div>
-      </aside>
-    </div>
-  </div>
+ <tr>
+  <td colspan="2">Total</td>
+  <td id="grandTotal" style="font-size:18px">0,00€</td>
+  <td></td>
+</tr>
+</tfoot>
+</table>
+</div>
+</div>
+
+<p class="help">Commande par défaut : <strong>à emporter</strong>.</p>
+<button class="btn ghost" id="exportJSON">Sauvegarde System</button>
+<div id="lastBackupInfo" style="font-size: 0.8rem; opacity: 0.7; margin-top: 4px;"></div>
+<button class="btn ghost" id="exportCSV">Exporter (CSV)</button>
+
+<!-- 🆕 Encart logo sous le panier -->
+<div class="card" id="logoCard" style="margin-top:12px; padding:12px; text-align:center;">
+  <img
+    src="img/logo-collina.png"
+    alt="Logo de la pizzeria"
+    style="max-width:100%; max-height:80px; object-fit:contain; border-radius:10px;"
+  >
+</div>
 
   <!-- Modal configurateur -->
   <div class="modal" id="configModal" aria-hidden="true" role="dialog" aria-labelledby="cfgTitle">
