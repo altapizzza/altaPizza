@@ -654,58 +654,48 @@
   .dark .table-export thead{
     background:#020617;
   }
-  
-  /* ========== Encart Premium Collina Pizza ========== */
 
-.premium-logo-card{
-  margin-top:18px;
-  padding:24px 20px;
-  text-align:center;
-  border-radius:20px;
+/* === Encart logo premium sous le panier === */
+
+#logoCard{
+  margin-top:16px;
+  padding:20px 18px 22px;
+  border-radius:24px;
   background:#ffffff;
-  box-shadow:0 8px 24px -4px rgba(0,0,0,0.15);
-  animation:fadeInLogo 0.65s ease both;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  gap:10px;
+  text-align:center;
+  box-shadow:
+    0 20px 40px -26px rgba(15,23,42,.45),
+    0 0 0 1px rgba(148,163,184,.18);
+  animation: logoCardIn .45s ease-out;
 }
 
-.dark .premium-logo-card{
-  background:#0f172a;
-  box-shadow:0 8px 24px -4px rgba(0,0,0,0.4);
+.dark #logoCard{
+  background:#020617;
+  box-shadow:
+    0 20px 40px -26px rgba(0,0,0,.9),
+    0 0 0 1px rgba(37,99,235,.45);
 }
 
-/* Logo grand format */
-.premium-logo{
-  max-height:220px;
-  width:auto;
+/* Logo mis en valeur */
+#logoCard img{
+  max-width:220px;        /* ⭐ taille cible */
+  width:100%;
+  height:auto;
   object-fit:contain;
-  border-radius:12px;
+  border-radius:16px;     /* arrondi doux */
+  display:block;
+  margin:0 auto;
 }
 
-/* Titre Collina Pizza */
-.premium-title{
-  font-size:18px;
-  font-weight:700;
-  color:#374151;
-  font-family: "Segoe UI", Inter, system-ui, sans-serif;
-  letter-spacing:0.5px;
-}
-
-.dark .premium-title{
-  color:#e5e7eb;
-}
-
-/* Animation fade-in premium */
-@keyframes fadeInLogo {
-  from {
+/* Animation premium */
+@keyframes logoCardIn{
+  from{
     opacity:0;
-    transform:translateY(12px);
+    transform:translateY(8px) scale(0.97);
   }
-  to {
+  to{
     opacity:1;
-    transform:translateY(0);
+    transform:translateY(0) scale(1);
   }
 }
 
@@ -790,14 +780,12 @@
 <div id="lastBackupInfo" style="font-size: 0.8rem; opacity: 0.7; margin-top: 4px;"></div>
 <button class="btn ghost" id="exportCSV">Exporter (CSV)</button>
 
-<!-- 🆕 Encart premium Collina Pizza -->
-<div class="card premium-logo-card" id="logoCard">
+<!-- Encart logo premium -->
+<div class="card" id="logoCard">
   <img
     src="img/logo-collina.png"
-    alt="Logo Collina Pizza"
-    class="premium-logo"
+    alt="Logo de la pizzeria"
   >
-  <div class="premium-title">Collina Pizza</div>
 </div>
 
   <!-- Modal configurateur -->
