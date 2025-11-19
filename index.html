@@ -654,6 +654,61 @@
   .dark .table-export thead{
     background:#020617;
   }
+  
+  /* ========== Encart Premium Collina Pizza ========== */
+
+.premium-logo-card{
+  margin-top:18px;
+  padding:24px 20px;
+  text-align:center;
+  border-radius:20px;
+  background:#ffffff;
+  box-shadow:0 8px 24px -4px rgba(0,0,0,0.15);
+  animation:fadeInLogo 0.65s ease both;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:10px;
+}
+
+.dark .premium-logo-card{
+  background:#0f172a;
+  box-shadow:0 8px 24px -4px rgba(0,0,0,0.4);
+}
+
+/* Logo grand format */
+.premium-logo{
+  max-height:220px;
+  width:auto;
+  object-fit:contain;
+  border-radius:12px;
+}
+
+/* Titre Collina Pizza */
+.premium-title{
+  font-size:18px;
+  font-weight:700;
+  color:#374151;
+  font-family: "Segoe UI", Inter, system-ui, sans-serif;
+  letter-spacing:0.5px;
+}
+
+.dark .premium-title{
+  color:#e5e7eb;
+}
+
+/* Animation fade-in premium */
+@keyframes fadeInLogo {
+  from {
+    opacity:0;
+    transform:translateY(12px);
+  }
+  to {
+    opacity:1;
+    transform:translateY(0);
+  }
+}
+
 </style>
 
 </head>
@@ -735,13 +790,14 @@
 <div id="lastBackupInfo" style="font-size: 0.8rem; opacity: 0.7; margin-top: 4px;"></div>
 <button class="btn ghost" id="exportCSV">Exporter (CSV)</button>
 
-<!-- 🆕 Encart logo sous le panier -->
-<div class="card" id="logoCard" style="margin-top:12px; padding:12px; text-align:center;">
+<!-- 🆕 Encart premium Collina Pizza -->
+<div class="card premium-logo-card" id="logoCard">
   <img
     src="img/logo-collina.png"
-    alt="Logo de la pizzeria"
-    style="max-width:100%; max-height:220px; object-fit:contain; border-radius:10px;"
+    alt="Logo Collina Pizza"
+    class="premium-logo"
   >
+  <div class="premium-title">Collina Pizza</div>
 </div>
 
   <!-- Modal configurateur -->
