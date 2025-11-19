@@ -1979,9 +1979,45 @@
       if (typeof syncArchiveViewTabs === 'function') {
         syncArchiveViewTabs();
       }
+	  
+enableSecretLongPressDeleteMode();
 
       byId('archiveModal').classList.add('open');
     }
+	
+	function enableSecretLongPressDeleteMode(){
+  const startInput = document.getElementById("archiveStart");
+  if (!startInput) return;
+
+  let pressTimer = null;
+
+  // Début de pression
+  startInput.addEventListener("touchstart", () => {
+    pressTimer = setTimeout(() => {
+      archiveDeleteMode = !archiveDeleteMode;
+      renderArchive();  // rafraîchir l'affichage des boutons X
+      console.log("Mode suppression :", archiveDeleteMode);
+    }, 2000); // ⭐ 2 secondes de pression
+  });
+
+  // Fin de pression (annule si pas assez long)
+  startInput.addEventListener("touchend", () => {
+    clearTimeout(pressTimer);
+  });
+
+  // Pour compatibilité clavier/souris si jamais (optionnel)
+  startInput.addEventListener("mousedown", () => {
+    pressTimer = setTimeout(() => {
+      archiveDeleteMode = !archiveDeleteMode;
+      renderArchive();
+      console.log("Mode suppression :", archiveDeleteMode);
+    }, 2000);
+  });
+
+  startInput.addEventListener("mouseup", () => {
+    clearTimeout(pressTimer);
+  });
+}
 
     function clearArchive(){
       if (!archivedOrders.length) { alert('Historique déjà vide.'); return; }
