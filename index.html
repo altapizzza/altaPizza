@@ -4,12 +4,6 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Pizzeria – Prise de commande (À emporter)</title>
-
-  <!-- Firebase v8 (app + auth + firestore) -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-
   <style>
     :root{
       --bg:#faf7f2; --ink:#1f2328; --brand:#e63946; --accent:#1d3557;
@@ -43,8 +37,25 @@
     .icon-btn:hover{background:rgba(0,0,0,.18)}
     .dark .icon-btn{background:#272b36}
     .dark .icon-btn:hover{background:#323848}
+/* Option D — Post-it couleur claire, mais adoucie en mode nuit */
+.dark .order-note {
+  background: #bfae72;              /* jaune post-it désaturé élégant */
+  color: #2a2a2a;                    /* texte foncé pour contraste */
+  border-color: rgba(0,0,0,.25);
+  box-shadow:
+    0 6px 14px -6px rgba(0,0,0,.6),
+    inset 0 1px 0 rgba(255,255,255,.15);
+}
 
-    /* Mise en page */
+/* Texte “aide” (créneau, téléphone, etc.) */
+.dark .order-note .help {
+  color:#3a3a3a;                    /* plus doux mais lisible */
+}
+
+/* Coin plié du post-it */
+.dark .order-note::after {
+  border-color: rgba(0,0,0,.35) transparent transparent transparent;
+}    /* Mise en page */
     .wrap{max-width:1100px; margin:18px auto; padding:0 16px}
     .grid{display:grid; grid-template-columns: 1.2fr .8fr; gap:18px}
     @media (max-width: 920px){.grid{grid-template-columns:1fr}}
@@ -127,22 +138,34 @@
     .dark .chip{background:#111827; color:#e5e7eb; border-color:#2a2f3a}
     textarea.json-editor{width:100%; min-height:360px; font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:13px; padding:12px; border:1px solid #ddd; border-radius:12px}
     .dark textarea.json-editor{background:#111827; color:#e5e7eb; border-color:#2a2f3a}
+	.dark input,
+.dark textarea,
+.dark select {
+  color: #fff !important;
+  background-color: #222 !important;
+  border-color: #555 !important;
+}
+
+/* Placeholders visibles en mode nuit */
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #bbb !important;
+}
+
+/* Dans le configurateur / modale, si background clair */
+.dark .modal .body {
+  color: #fff !important;
+}
+
+/* Si tu as des champs spécifiques comme #client et #phone */
+.dark #client,
+.dark #phone {
+  color: #fff !important;
+  background-color: #222 !important;
+}
   </style>
 </head>
 <body>
-
-  <!-- OVERLAY CONNEXION -->
-  <div id="loginOverlay" style="position:fixed;inset:0;background:rgba(15,17,21,.96);display:flex;align-items:center;justify-content:center;z-index:3000;">
-    <div style="background:#fff;padding:20px;border-radius:12px;max-width:320px;width:90%;box-shadow:0 20px 40px rgba(0,0,0,.35);">
-      <h2 style="margin-top:0;margin-bottom:6px;font-size:18px;">Connexion</h2>
-      <p class="help" style="margin-top:0;margin-bottom:10px;">Réservé au personnel (iPad / cuisine).</p>
-      <input id="loginEmail" type="email" placeholder="Email" style="width:100%;margin-bottom:8px;padding:8px 10px;border-radius:8px;border:1px solid #ddd;">
-      <input id="loginPassword" type="password" placeholder="Mot de passe" style="width:100%;margin-bottom:8px;padding:8px 10px;border-radius:8px;border:1px solid:#ddd;">
-      <button id="loginBtn" class="btn" style="width:100%;margin-bottom:6px;">Se connecter</button>
-      <div id="loginError" class="help" style="color:#b91c1c;min-height:18px;"></div>
-    </div>
-  </div>
-
   <!-- Bandeau post-it -->
   <div class="banner" id="banner">
     <div class="banner-inner">
@@ -307,13 +330,17 @@
         <button class="icon-btn" id="closeStats" aria-label="Fermer">✕</button>
       </header>
       <div class="body">
-        <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap">
-          <button class="icon-btn" id="statsPrev" title="Jour précédent">◀️</button>
-          <input type="date" id="statsDate" />
-          <button class="icon-btn" id="statsNext" title="Jour suivant">▶️</button>
-          <button class="btn ghost" id="statsToday" title="Revenir à aujourd’hui">Aujourd’hui</button>
-        </div>
-        <div id="statsContent" class="help"></div>
+       <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap">
+  			<input type="date" id="statsStart" />
+  			<input type="date" id="statsEnd" />
+  			<button class="btn ghost" id="statsToday" title="Revenir à aujourd’hui">Aujourd’hui</button>
+  			<button class="btn ghost" id="statsThisMonth" title="Ce mois">Ce mois</button>
+  			<div style="flex:1"></div>
+  			<button class="btn ghost" id="exportStats" title="Exporter les stats (CSV)">Exporter</button>
+	    <button class="btn ghost" id="exportDrinksDesserts" title="Exporter boissons & desserts (CSV)">Boissons & 		       desserts</button>
+	</div>
+<div id="statsContent" class="help"></div>
+
       </div>
     </div>
   </div>
@@ -327,11 +354,16 @@
       </header>
       <div class="body">
         <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap">
-          <input type="date" id="archiveDateFilter" />
-          <button class="btn ghost" id="archiveToday" title="Aujourd’hui">Aujourd’hui</button>
-          <span class="help" id="archiveCount"></span>
-          <div style="flex:1"></div>
-          <button class="btn" id="clearArchive" title="Supprimer définitivement l’historique">Vider l’historique</button>
+ 			 <input type="date" id="archiveStart" />
+  			<input type="date" id="archiveEnd" />
+  			<button class="btn ghost" id="archiveToday" title="Aujourd’hui">Aujourd’hui</button>
+  			<button class="btn ghost" id="archiveThisMonth" title="Ce mois">Ce mois</button>
+  			<span class="help" id="archiveCount"></span>
+  			<div style="flex:1"></div>
+  			<button class="btn ghost" id="exportArchive" title="Exporter l’historique (CSV)">Exporter</button>
+  			<button class="btn" id="clearArchive" title="Supprimer définitivement l’historique" style="display:none">Vider 		   l’historique</button>
+	</div>
+Vider l’historique</button>
         </div>
         <div id="archiveContent" class="help"></div>
       </div>
@@ -384,83 +416,6 @@
       const t = byId('toggleTheme');
       if(t){ t.textContent = (mode==='dark') ? '☀️' : '🌙'; t.title = (mode==='dark') ? 'Mode clair' : 'Mode sombre'; }
     }
-/* ===== Firebase / Firestore / Auth ===== */
-let db = null;
-
-(async function initFirebase(){
-  try{
-    const firebaseConfig = {
-      apiKey: "AIzaSyAZhays9gJNV_KCFsA-W3O833EUriBAScM",
-      authDomain: "pizza-commande.firebaseapp.com",
-      projectId: "pizza-commande",
-      storageBucket: "pizza-commande.firebasestorage.app",
-      messagingSenderId: "405777576848",
-      appId: "1:405777576848:web:40101029cc7e8697f07915"
-    };
-
-    // Initialisation Firebase
-    const app = firebase.initializeApp(firebaseConfig);
-    db = firebase.firestore();
-
-    console.log("Firebase prêt ✔️");
-
-  } catch(err){
-    console.error("Erreur Firebase :", err);
-    alert("Erreur Firebase : "+err.message);
-  }
-})();
-
-    function initAppAfterLogin(){
-      if(initAppAfterLogin._done) return;
-      initAppAfterLogin._done = true;
-      try{
-        db = firebase.firestore();
-        setupRealtime();
-        showHealth('Connecté à Firebase', 'ok', 1500);
-      }catch(e){
-        console.error(e);
-        showHealth('Erreur init Firestore : '+(e.message||e), 'error');
-      }
-    }
-
-    function setupAuth(){
-      const overlay = byId('loginOverlay');
-      const emailEl = byId('loginEmail');
-      const passEl  = byId('loginPassword');
-      const btn     = byId('loginBtn');
-      const errBox  = byId('loginError');
-
-      if(!firebase || !firebase.auth){
-        overlay.style.display = 'flex';
-        errBox.textContent = 'Firebase Auth indisponible.';
-        return;
-      }
-
-      btn.addEventListener('click', ()=>{
-        const email = (emailEl.value||'').trim();
-        const pass  = passEl.value||'';
-        errBox.textContent = '';
-        if(!email || !pass){
-          errBox.textContent = 'Email et mot de passe requis.';
-          return;
-        }
-        firebase.auth().signInWithEmailAndPassword(email, pass)
-          .then(()=>{ /* onAuthStateChanged gère la suite */ })
-          .catch((e)=>{
-            console.error(e);
-            errBox.textContent = 'Connexion impossible : ' + (e.message || e);
-          });
-      });
-
-      firebase.auth().onAuthStateChanged((user)=>{
-        if(user){
-          overlay.style.display = 'none';
-          initAppAfterLogin();
-        }else{
-          overlay.style.display = 'flex';
-        }
-      });
-    }
 
     /* ===== Tickets ===== */
     function todayKey(){ const d=new Date(); const y=d.getFullYear(); const m=String(d.getMonth()+1).padStart(2,'0'); const day=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${day}`; }
@@ -499,6 +454,7 @@ let db = null;
     let currentItems = [];
     let savedOrders = [];
     let archivedOrders = [];
+    let archiveDeleteMode = false;
     let cfg = { pizzaId:null, size:'petite', qty:1, toppings:[] };
     let currentCategory = 'pizzas';
     let editingOrderId = null;
@@ -506,15 +462,16 @@ let db = null;
     // Fichier clients (local)
     let clients = [];
 
-    // Créneaux déverrouillés
+    // Mode déverrouillage des créneaux (stocké)
     let unlockSlots = JSON.parse(localStorage.getItem('pizzeria.unlock') || 'false');
 
-    /* ===== Persistance locale (cache) ===== */
+    /* ===== Persistance commandes / archives ===== */
     function saveOrders(){ localStorage.setItem('pizzeria.orders', JSON.stringify(savedOrders)); }
     function loadOrders(){ savedOrders = JSON.parse(localStorage.getItem('pizzeria.orders')||'[]'); renderSavedOrders(); updateSlotsCapacity(); }
     function saveArchived(){ localStorage.setItem('pizzeria.archived', JSON.stringify(archivedOrders)); }
     function loadArchived(){ archivedOrders = JSON.parse(localStorage.getItem('pizzeria.archived')||'[]'); }
 
+    // Sauvegarde panier
     function saveCart(){ localStorage.setItem('pizzeria.cart', JSON.stringify(currentItems)); }
     function loadCart(){ try{ const raw=localStorage.getItem('pizzeria.cart'); if(raw){ currentItems=JSON.parse(raw)||[]; } }catch(_){ currentItems=[]; } }
 
@@ -538,6 +495,7 @@ let db = null;
       const n = (name||'').trim();
       const p = (phone||'').trim();
       if(!n || !p) return;
+
       const now = new Date().toISOString();
       const normPhone = normalizePhone(p);
       const normName  = normalizeName(n);
@@ -577,6 +535,20 @@ let db = null;
         return s + (isPizza ? (Number(l.qty) || 0) : 0);
       }, 0);
     }
+    function countByKindIn(items, kind){
+  		return (items || []).reduce((s, l) => {
+    		return lineKind(l) === kind ? s + (Number(l.qty) || 0) : s;
+            	 }, 0);
+}
+
+function countDrinksIn(items){
+  return countByKindIn(items, 'drink');
+}
+
+function countDessertsIn(items){
+  return countByKindIn(items, 'dessert');
+}
+
     function pizzasBookedForSlot(slot, excludeId){
       return savedOrders
         .filter(o=>o.slot===slot && o.id !== excludeId)
@@ -621,12 +593,13 @@ let db = null;
         CATALOG.desserts.forEach(d=> grid.appendChild(simpleItemCard(d, 'dessert')) );
       }
     }
+
     function pizzaCard(p){
       const card = document.createElement('article');
       card.className = 'item-card';
       card.style.padding = '8px';
       card.innerHTML = `
-        <div class="item-illus">🍕</div>
+        <div class="item-illus">${p.emoji || '🍕'}</div>
         <div class="item-info" style="flex:1">
           <h4 style="margin-bottom:6px; font-size:15px">${p.name}</h4>
           <div class="quick-actions" style="margin-top:4px; flex-direction:column; gap:6px">
@@ -650,6 +623,7 @@ let db = null;
       });
       return card;
     }
+
     function simpleItemCard(item, kind){
       const card = document.createElement('article'); card.className='item-card';
       card.innerHTML = `
@@ -663,11 +637,13 @@ let db = null;
       card.querySelector('button').addEventListener('click', ()=> quickAddSimple(item.id, kind) );
       return card;
     }
+
     function addOrIncrement(key, create){
       const found = currentItems.find(l=> l.key===key);
       if(found){ found.qty += 1; renderOrderTable(); return; }
       const line = create(); line.key = key; currentItems.push(line); renderOrderTable();
     }
+
     function quickAddPizza(pizzaId, size){
       const p = CATALOG.pizzas.find(x=>x.id===pizzaId); if(!p) return;
       const key = `pizza:${pizzaId}:${size}:none`;
@@ -682,6 +658,7 @@ let db = null;
         unitPrice: p.base[size]
       }));
     }
+
     function quickAddSimple(id, kind){
       if(kind==='drink'){
         const d = CATALOG.drinks.find(x=>x.id===id); if(!d) return;
@@ -849,6 +826,7 @@ let db = null;
 
       updateFieldHints();
     }
+
     function handlePhoneChange(){
       const nameInput = byId('client');
       const phoneInput = byId('phone');
@@ -865,6 +843,7 @@ let db = null;
       if(matches.length === 1){
         const c = matches[0];
         const currentName = nameInput.value.trim();
+        // On ne change le nom QUE s'il est vide ou déjà identique
         if(!currentName || normalizeName(currentName) === normalizeName(c.name)){
           nameInput.value = c.name;
         }
@@ -895,35 +874,7 @@ let db = null;
       updateFieldHints();
     }
 
-    /* ===== Synchro Firestore temps réel ===== */
-    function sameDayISO(ts){ const d=new Date(ts); return d.toISOString().slice(0,10); }
-    function todayISO(){ return new Date().toISOString().slice(0,10); }
-
-    function setupRealtime(){
-      if(!db) return;
-
-      db.collection('orders').orderBy('at','desc').onSnapshot((snap)=>{
-        const arr=[];
-        snap.forEach(doc=> arr.push(doc.data()));
-        savedOrders = arr;
-        saveOrders();
-        renderSavedOrders();
-        updateSlotsCapacity();
-      }, (err)=> console.error('Firestore orders error', err));
-
-      db.collection('archivedOrders').orderBy('at','desc').onSnapshot((snap)=>{
-        const arr=[];
-        snap.forEach(doc=> arr.push(doc.data()));
-        archivedOrders = arr;
-        saveArchived();
-        const m = byId('archiveModal');
-        if(m && m.classList.contains('open')){
-          renderArchive(byId('archiveDateFilter')?.value || '');
-        }
-      }, (err)=> console.error('Firestore archived error', err));
-    }
-
-    /* ===== Enregistrement ===== */
+    /* ===== Enregistrement (localStorage) ===== */
     function saveOrder(){
       const clientEl = byId('client');
       const slotEl = byId('slot');
@@ -967,30 +918,20 @@ let db = null;
 
       if(editingOrderId){
         const idx = savedOrders.findIndex(o=>o.id===editingOrderId);
-        const base = idx !== -1 ? savedOrders[idx] : {};
-        const updated = {
-          ...base,
-          client: clientName,
-          phone,
-          slot,
-          status: base.status || 'préparation',
-          items: structuredClone(currentItems),
-          total,
-          updatedAt: new Date().toISOString()
-        };
-
-        if(db){
-          db.collection('orders').doc(editingOrderId).set(updated).then(()=>{
-            showHealth('Commande mise à jour ✅', 'ok', 2000);
-          }).catch(err=>{
-            console.error(err);
-            showHealth('Erreur Firebase (maj) : ' + (err.message||err), 'error');
-          });
-        } else {
-          if(idx !== -1){
-            savedOrders[idx] = updated;
-            saveOrders(); renderSavedOrders(); updateSlotsCapacity();
-          }
+        if(idx !== -1){
+          const old = savedOrders[idx];
+          savedOrders[idx] = {
+            ...old,
+            client: clientName,
+            phone,
+            slot,
+            status: old.status || 'préparation',
+            items: structuredClone(currentItems),
+            total,
+            updatedAt: new Date().toISOString()
+          };
+          saveOrders(); renderSavedOrders(); updateSlotsCapacity();
+          showHealth('Commande mise à jour ✅', 'ok', 2000);
         }
         resetOrder();
         return;
@@ -1009,19 +950,8 @@ let db = null;
         items: structuredClone(currentItems),
         total
       };
-
-      if(db){
-        db.collection('orders').doc(order.id).set(order).then(()=>{
-          // la mise à jour viendra par onSnapshot
-        }).catch(err=>{
-          console.error(err);
-          showHealth('Erreur Firebase (création) : ' + (err.message||err), 'error');
-        });
-      } else {
-        savedOrders.unshift(order);
-        saveOrders(); renderSavedOrders(); updateSlotsCapacity();
-      }
-
+      savedOrders.unshift(order);
+      saveOrders(); renderSavedOrders(); updateSlotsCapacity();
       resetOrder();
     }
 
@@ -1071,6 +1001,7 @@ let db = null;
       if (filterSel) {
         const previous = filterSel.value;
         const slots = [...new Set(savedOrders.map(o=>o.slot).filter(Boolean))].sort();
+
         filterSel.innerHTML = '<option value="">Tous les créneaux</option>';
         slots.forEach(s=>{
           const opt = document.createElement('option');
@@ -1078,6 +1009,7 @@ let db = null;
           opt.textContent = s;
           filterSel.appendChild(opt);
         });
+
         filterSel.value = previous || '';
         filter = filterSel.value;
       }
@@ -1130,18 +1062,18 @@ let db = null;
             <button class="icon-btn" title="Supprimer" onclick="deleteOrder('${o.id}')">🗑️</button>
           </div>
           <header><span class="badge" data-status="${o.status}">${o.status}</span></header>
-          <h4>${o.ticket?o.ticket+' • ':''}${o.client}</h4>
+          <h4>${o.ticket ? o.ticket + ' • ' : ''}${(o.client || '').toUpperCase()}</h4>
           <p class="help">
             ${new Date(o.at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}
             • ${o.type}
             • ${o.slot||'—'}
-            • 🍕 ${pizzasCount} pizza${pizzasCount>1?'s':''}
+            • <span style="white-space:nowrap">🍕 ${pizzasCount} pizza${pizzasCount>1?'s':''}</span>
             ${o.phone ? ' • 📞 ' + o.phone : ''}
           </p>
           <div>${itemsText || ''}</div>
           <p style="font-weight:800; margin-top:6px">${euro(o.total)}</p>
           <div style="display:flex; gap:6px; margin-top:8px">
-            <button class="icon-btn" title="Marquer livrée" onclick="confirmDeliver('${o.id}')">🏁</button>
+            <button class="icon-btn" title="Marquer livrée" onclick="confirmDeliver('${o.id}')">✅</button>
           </div>`;
         area.appendChild(note);
       });
@@ -1149,15 +1081,10 @@ let db = null;
 
     function deleteOrder(id){
       if(!confirm('Supprimer cette commande ?')) return;
-      if(db){
-        db.collection('orders').doc(id).delete().catch(err=>{
-          console.error(err);
-          showHealth('Erreur Firebase (suppression) : ' + (err.message||err), 'error');
-        });
-      } else {
-        savedOrders = savedOrders.filter(o=>o.id!==id);
-        saveOrders(); renderSavedOrders(); updateSlotsCapacity();
-      }
+      savedOrders = savedOrders.filter(o=>o.id!==id);
+      saveOrders();
+      renderSavedOrders();
+      updateSlotsCapacity();
     }
 
     /* ===== Impression ticket ===== */
@@ -1196,137 +1123,214 @@ let db = null;
       const o = savedOrders.find(x=>x.id===id);
       if(!o) return;
       if(!confirm('Marquer cette commande comme livrée et l’archiver ?')) return;
-      const archived = { ...o, status:'livrée', archivedAt:new Date().toISOString() };
-
-      if(db){
-        const batch = db.batch();
-        const refOrder = db.collection('orders').doc(id);
-        const refArch  = db.collection('archivedOrders').doc(id);
-        batch.set(refArch, archived);
-        batch.delete(refOrder);
-        batch.commit().catch(err=>{
-          console.error(err);
-          showHealth('Erreur Firebase (archivage) : ' + (err.message||err), 'error');
-        });
-      } else {
-        savedOrders = savedOrders.filter(x=>x.id!==id);
-        archivedOrders.unshift(archived);
-        saveOrders(); saveArchived();
-        renderSavedOrders(); updateSlotsCapacity();
-      }
+      o.status = 'livrée';
+      savedOrders = savedOrders.filter(x=>x.id!==id);
+      saveOrders();
+      archivedOrders.unshift({ ...o, archivedAt: new Date().toISOString() });
+      saveArchived();
+      renderSavedOrders();
+      updateSlotsCapacity();
     }
-
     function restoreOrder(id){
       const idx = archivedOrders.findIndex(o => o.id === id);
       if(idx === -1) return;
       if(!confirm('Restaurer cette commande dans les post-it ?')) return;
       const o = archivedOrders[idx];
-      const restored = { ...o, status:'préparation', restoredAt:new Date().toISOString() };
-
-      if(db){
-        const batch = db.batch();
-        const refArch  = db.collection('archivedOrders').doc(id);
-        const refOrder = db.collection('orders').doc(id);
-        batch.set(refOrder, restored);
-        batch.delete(refArch);
-        batch.commit().catch(err=>{
-          console.error(err);
-          showHealth('Erreur Firebase (restauration) : ' + (err.message||err), 'error');
-        });
-      } else {
-        archivedOrders.splice(idx,1);
-        savedOrders.unshift(restored);
-        saveOrders(); saveArchived();
-        renderSavedOrders();
-        renderArchive(byId('archiveDateFilter')?.value || '');
-        updateSlotsCapacity();
-      }
+      archivedOrders.splice(idx, 1);
+      saveArchived();
+      const restored = { ...o, status: 'préparation', restoredAt: new Date().toISOString() };
+      savedOrders.unshift(restored);
+      saveOrders();
+      renderSavedOrders();
+      renderArchive(byId('archiveStart')?.value || '', byId('archiveEnd')?.value || '');
+      updateSlotsCapacity();
     }
 
-    function renderArchive(filterDay){
-      const area = byId('archiveContent');
-      const countLabel = byId('archiveCount');
+    function sameDayISO(ts){ const d=new Date(ts); return d.toISOString().slice(0,10); }
+    function todayISO(){ return new Date().toISOString().slice(0,10); }
 
-      let list = archivedOrders.slice();
-      if (filterDay) list = list.filter(o => sameDayISO(o.archivedAt || o.at) === filterDay);
+    function deleteArchiveItem(id){
+      const o = archivedOrders.find(x => x.id === id);
+      if (!o) return;
 
-      if (countLabel) countLabel.textContent = `${list.length} commande(s) ${filterDay ? 'ce jour' : 'au total'}`;
+      if (!confirm('Supprimer définitivement cette commande livrée ?')) return;
 
-      if (!list.length) { area.innerHTML = '<p class="help">Aucune commande livrée pour cette sélection.</p>'; return; }
+      archivedOrders = archivedOrders.filter(x => x.id !== id);
+      saveArchived();
 
-      const wrapper = document.createElement('div');
-      wrapper.className = 'card';
-      wrapper.style.boxShadow = 'none';
-      wrapper.innerHTML = `
-        <div class="body" style="padding:0">
-          <table>
-            <thead>
-              <tr>
-                <th>Ticket</th><th>Date/Heure</th><th>Client</th><th>Créneau</th>
-                <th style="text-align:right">Total</th><th colspan="2" style="width:1%"></th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>`;
-      const tbody = wrapper.querySelector('tbody');
-
-      list.forEach(o=>{
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${o.ticket||''}</td>
-          <td>${new Date(o.at).toLocaleString('fr-FR')}</td>
-          <td>${o.client}</td>
-          <td>${o.slot}</td>
-          <td style="text-align:right">${euro(o.total||0)}</td>
-          <td><button class="icon-btn" title="Imprimer">🖨️</button></td>
-          <td><button class="icon-btn" title="Restaurer">🔄</button></td>`;
-        const [printBtn, restoreBtn] = tr.querySelectorAll('button');
-        printBtn.addEventListener('click', ()=> printOrder(o));
-        restoreBtn.addEventListener('click', ()=> restoreOrder(o.id));
-        tbody.appendChild(tr);
-      });
-
-      area.innerHTML = '';
-      area.appendChild(wrapper);
-    }
-    function openArchive(){
       const input = byId('archiveDateFilter');
-      const today = todayISO();
-      if (input) {
-        input.value = today;
-        input.onchange = ()=> renderArchive(input.value || '');
-      }
-      const btnToday = byId('archiveToday');
-      if (btnToday) btnToday.onclick = ()=>{ input.value = todayISO(); renderArchive(input.value); };
-      renderArchive(input ? input.value : '');
-      byId('archiveModal').classList.add('open');
+      const currentDay = input ? (input.value || '') : '';
+      renderArchive(currentDay);
+
+      showHealth('Commande supprimée de l’historique.', 'ok', 2000);
     }
+
+function renderArchive(startDay, endDay) {
+  const area = byId('archiveContent');
+  const countLabel = byId('archiveCount');
+
+  let list = archivedOrders.slice();
+
+  // Filtre "du... au..." sur la date de commande (o.at)
+  if (startDay || endDay) {
+    list = list.filter(o => {
+      const day = sameDayISO(o.at || o.archivedAt || Date.now());
+      if (startDay && day < startDay) return false;
+      if (endDay && day > endDay) return false;
+      return true;
+    });
+  }
+
+  // 🔽 AJOUTER ÇA
+  list.sort((a, b) => {
+    const da = new Date(a.at || a.archivedAt || 0);
+    const db = new Date(b.at || b.archivedAt || 0);
+    return da - db; // ordre chronologique du plus ancien au plus récent
+  });
+
+  if (countLabel) {
+    if (startDay || endDay) {
+      countLabel.textContent = `${list.length} commande(s) pour la période`;
+    } else {
+      countLabel.textContent = `${list.length} commande(s) au total`;
+    }
+  }
+
+  if (!list.length) {
+    area.innerHTML = '<p class="help">Aucune commande livrée pour cette sélection.</p>';
+    return;
+  }
+
+  const wrapper = document.createElement('div');
+  wrapper.className = 'card';
+  wrapper.style.boxShadow = 'none';
+  wrapper.innerHTML = `
+    <div class="body" style="padding:0">
+      <table>
+        <thead>
+          <tr>
+            <th>Ticket</th>
+            <th>Date/Heure</th>
+            <th>Client</th>
+            <th>Créneau</th>
+            <th style="text-align:right">Total</th>
+            <th style="width:1%"></th>
+            <th style="width:1%"></th>
+            <th style="width:1%"></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>`;
+  const tbody = wrapper.querySelector('tbody');
+
+  list.forEach(o => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${o.ticket || ''}</td>
+      <td>${new Date(o.at).toLocaleString('fr-FR')}</td>
+      <td>${o.client}</td>
+      <td>${o.slot}</td>
+      <td style="text-align:right">${euro(o.total || 0)}</td>
+      <td><button class="icon-btn" title="Imprimer">🖨️</button></td>
+      <td><button class="icon-btn" title="Restaurer">🔄</button></td>
+      ${archiveDeleteMode
+        ? `<td><button class="icon-btn" title="Supprimer définitivement" data-del="1">🗑️</button></td>`
+        : `<td></td>`}
+    `;
+
+    const btns = tr.querySelectorAll('button');
+    const printBtn = btns[0];
+    const restoreBtn = btns[1];
+    printBtn.addEventListener('click', () => printOrder(o));
+    restoreBtn.addEventListener('click', () => restoreOrder(o.id));
+
+    if (archiveDeleteMode && btns[2]) {
+      const delBtn = btns[2];
+      delBtn.addEventListener('click', () => deleteArchiveItem(o.id));
+    }
+
+    tbody.appendChild(tr);
+  });
+
+  area.innerHTML = '';
+  area.appendChild(wrapper);
+}
+
+
+    function openArchive() {
+  const startInput = byId('archiveStart');
+  const endInput   = byId('archiveEnd');
+  const today      = todayISO();
+
+  // Initialisation des dates si vide
+  if (startInput && endInput) {
+    if (!startInput.value) startInput.value = today;
+    if (!endInput.value)   endInput.value   = today;
+
+    const refresh = () => {
+      renderArchive(startInput.value || '', endInput.value || '');
+    };
+
+    startInput.onchange = refresh;
+    endInput.onchange   = refresh;
+  }
+
+  // Bouton "Aujourd’hui"
+  const btnToday = byId('archiveToday');
+  if (btnToday && startInput && endInput) {
+    btnToday.onclick = () => {
+      const t = todayISO();
+      startInput.value = t;
+      endInput.value   = t;
+      renderArchive(t, t);
+    };
+  }
+
+  // Bouton "Ce mois"
+  const btnMonth = byId('archiveThisMonth');
+  if (btnMonth && startInput && endInput) {
+    btnMonth.onclick = () => {
+      const d     = new Date();
+      const year  = d.getFullYear();
+      const month = d.getMonth();      // 0–11
+
+      const first = new Date(year, month, 1);
+      const last  = new Date(year, month + 1, 0);
+
+      const toISO = (dd) => dd.toISOString().slice(0, 10);
+
+      const s = toISO(first);
+      const e = toISO(last);
+
+      startInput.value = s;
+      endInput.value   = e;
+      renderArchive(s, e);
+    };
+  }
+
+  // Affichage/masquage du bouton "Vider l’historique" selon le mode suppression
+  const clearBtn = byId('clearArchive');
+  if (clearBtn) {
+    clearBtn.style.display = archiveDeleteMode ? 'inline-flex' : 'none';
+  }
+
+  // Affichage initial (si les inputs ont déjà une valeur on les utilise)
+  const initStart = startInput?.value || today;
+  const initEnd   = endInput?.value   || today;
+  renderArchive(initStart, initEnd);
+
+  byId('archiveModal').classList.add('open');
+}
+
     function clearArchive(){
       if (!archivedOrders.length) { alert('Historique déjà vide.'); return; }
       if (!confirm('Supprimer définitivement toutes les commandes livrées de l’historique ?')) return;
       if (!confirm('Confirmer encore : cette action est irréversible.')) return;
-
-      if(db){
-        const batch = db.batch();
-        archivedOrders.forEach(o=>{
-          batch.delete(db.collection('archivedOrders').doc(o.id));
-        });
-        batch.commit().then(()=>{
-          archivedOrders = [];
-          saveArchived();
-          renderArchive(byId('archiveDateFilter')?.value || '');
-          showHealth('Historique vidé.', 'ok', 2000);
-        }).catch(err=>{
-          console.error(err);
-          showHealth('Erreur Firebase (vider historique) : ' + (err.message||err), 'error');
-        });
-      } else {
-        archivedOrders = [];
-        saveArchived();
-        renderArchive(byId('archiveDateFilter')?.value || '');
-        showHealth('Historique vidé.', 'ok', 2000);
-      }
+      archivedOrders = [];
+      saveArchived();
+      renderArchive(byId('archiveStart')?.value || '', byId('archiveEnd')?.value || '');
+      showHealth('Historique vidé.', 'ok', 2000);
     }
 
     /* ===== Exports ===== */
@@ -1335,6 +1339,7 @@ let db = null;
         const s = String(v == null ? '' : v); 
         return /[;"\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s; 
       };
+
       const rows = [[
         'date',
         'ticket',
@@ -1377,6 +1382,84 @@ let db = null;
       const url = URL.createObjectURL(blob); const a=document.createElement('a');
       a.href = url; a.download = `commandes_${new Date().toISOString().slice(0,10)}.csv`; a.click(); URL.revokeObjectURL(url);
     }
+
+function exportArchiveCSV() {
+  if (!archivedOrders || !archivedOrders.length) {
+    alert("Aucune commande livrée à exporter.");
+    return;
+  }
+
+  const start = byId('archiveStart')?.value || '';
+  const end = byId('archiveEnd')?.value || '';
+
+  const esc = (v) => {
+    const s = String(v == null ? '' : v);
+    return /[;"\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+
+  const rows = [[
+    'date_commande',
+    'ticket',
+    'client',
+    'creneau',
+    'total_commande'
+  ]];
+
+  let filtered = archivedOrders.slice();
+
+if (start || end) {
+  filtered = filtered.filter(o => {
+    const day = sameDayISO(o.at || o.archivedAt || Date.now());
+    if (start && day < start) return false;
+    if (end && day > end) return false;
+    return true;
+  });
+}
+
+// 🔽 TRI CHRONOLOGIQUE POUR LE CSV
+filtered.sort((a, b) => {
+  const da = new Date(a.at || a.archivedAt || 0);
+  const db = new Date(b.at || b.archivedAt || 0);
+  return da - db;
+});
+
+  if (!filtered.length) {
+    alert("Aucune commande dans cette période.");
+    return;
+  }
+
+  let totalDay = 0;
+
+  filtered.forEach(o => {
+    const dateCmd = new Date(o.at || Date.now());
+    const tot = Number(o.total || 0);
+    totalDay += tot;
+
+    rows.push([
+      dateCmd.toLocaleString('fr-FR'),
+      o.ticket || '',
+      o.client || '',
+      o.slot || '',
+      String(tot).replace('.', ',')
+    ]);
+  });
+
+  // ligne vide + total de la période
+  rows.push([]);
+  rows.push(['', '', '', 'Total période', String(totalDay).replace('.', ',')]);
+
+  const csv = rows.map(r => r.map(esc).join(';')).join('\n');
+
+  const BOM = '\uFEFF';
+  const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const label = (start || end) ? `${start || ''}_au_${end || ''}` : todayISO();
+  a.href = url;
+  a.download = `historique_commandes_${label}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
     /* ===== Fichier clients – affichage Admin / export ===== */
     function renderClientsAdmin(){
@@ -1458,47 +1541,345 @@ let db = null;
     }
 
     /* ===== Stats ===== */
-    function computeStatsFor(day){
-      const allOrders = [...savedOrders, ...archivedOrders].filter(o => sameDayISO(o.at) === day);
-      const totalSales = allOrders.reduce((s,o)=> s + (o.total||0), 0);
-      const totalPizzas = allOrders.reduce((s,o)=> s + countPizzasIn(o.items||[]), 0);
-      const perSlot = new Map();
-      allOrders.forEach(o => perSlot.set(o.slot, (perSlot.get(o.slot)||0) + countPizzasIn(o.items||[])));
-      const sorted = [...perSlot.entries()].sort(([a],[b]) => a.localeCompare(b));
-      return { ordersCount: allOrders.length, totalSales, totalPizzas, perSlot: sorted };
-    }
-    function renderStatsFor(day){
-      const s = computeStatsFor(day);
-      const cards = `
-        <div class="stats-cards">
-          <div class="stats-card"><h4>Commandes</h4><div class="v">${s.ordersCount}</div></div>
-          <div class="stats-card"><h4>Pizzas</h4><div class="v">${s.totalPizzas}</div></div>
-          <div class="stats-card"><h4>Total ventes</h4><div class="v">${euro(s.totalSales)}</div></div>
-        </div>`;
-      let table = '';
-      if (s.perSlot.length){
-        const max = Math.max(1, ...s.perSlot.map(([,v]) => v));
-        const rows = s.perSlot.map(([slot, n]) => {
-          const pct = Math.round((n / max) * 100);
-          return `<tr><td>${slot}</td><td><div class="bar"><span style="width:${pct}%"></span></div></td><td style="text-align:right">${n}</td></tr>`;
-        }).join('');
-        table = `<div class="stats-table"><table><thead><tr><th>Créneau</th><th style="width:60%">Répartition</th><th style="text-align:right">Pizzas</th></tr></thead><tbody>${rows}</tbody></table></div>`;
-      } else {
-        table = '<p class="help">Aucune commande pour cette date.</p>';
-      }
-      byId('statsContent').innerHTML = cards + table;
-    }
-    function openStats(){
-      const input = byId('statsDate');
-      const today = todayISO();
-      input.value = today;
-      renderStatsFor(today);
-      input.onchange = ()=> renderStatsFor(input.value || todayISO());
-      byId('statsToday').onclick = ()=>{ input.value = todayISO(); renderStatsFor(input.value); };
-      byId('statsPrev').onclick = ()=>{ const d = new Date(input.value||todayISO()); d.setDate(d.getDate()-1); input.value = d.toISOString().slice(0,10); renderStatsFor(input.value); };
-      byId('statsNext').onclick = ()=>{ const d = new Date(input.value||todayISO()); d.setDate(d.getDate()+1); input.value = d.toISOString().slice(0,10); renderStatsFor(input.value); };
-      byId('statsModal').classList.add('open');
-    }
+function computeStatsForRange(startDay, endDay){
+  const allOrders = [...savedOrders, ...archivedOrders].filter(o => {
+    const d = sameDayISO(o.at);
+    if (startDay && d < startDay) return false;
+    if (endDay && d > endDay) return false;
+    return true;
+  });
+
+  const totalSales    = allOrders.reduce((s,o)=> s + (o.total||0), 0);
+  const totalPizzas   = allOrders.reduce((s,o)=> s + countPizzasIn(o.items||[]), 0);
+  const totalDrinks   = allOrders.reduce((s,o)=> s + countDrinksIn(o.items||[]), 0);
+  const totalDesserts = allOrders.reduce((s,o)=> s + countDessertsIn(o.items||[]), 0);
+  const ordersCount   = allOrders.length;
+
+  // ===== Stats par créneau (pizzas, boissons, desserts, commandes, total €) =====
+  const perSlotMap = new Map();
+  allOrders.forEach(o => {
+    const slot     = o.slot || '—';
+    const pizzas   = countPizzasIn(o.items || []);
+    const drinks   = countDrinksIn(o.items || []);
+    const desserts = countDessertsIn(o.items || []);
+    const prev     = perSlotMap.get(slot) || { orders:0, pizzas:0, drinks:0, desserts:0, total:0 };
+
+    prev.orders   += 1;
+    prev.pizzas   += pizzas;
+    prev.drinks   += drinks;
+    prev.desserts += desserts;
+    prev.total    += (o.total || 0);
+
+    perSlotMap.set(slot, prev);
+  });
+
+  const perSlot = [...perSlotMap.entries()]
+    .sort(([a],[b]) => a.localeCompare(b));
+
+  // ===== Stats par jour (on garde, utile si tu veux un jour faire un export par jour) =====
+  const perDayMap = new Map();
+  allOrders.forEach(o => {
+    const d        = sameDayISO(o.at);
+    const pizzas   = countPizzasIn(o.items || []);
+    const drinks   = countDrinksIn(o.items || []);
+    const desserts = countDessertsIn(o.items || []);
+    const prev     = perDayMap.get(d) || { orders:0, pizzas:0, drinks:0, desserts:0, total:0 };
+
+    prev.orders   += 1;
+    prev.pizzas   += pizzas;
+    prev.drinks   += drinks;
+    prev.desserts += desserts;
+    prev.total    += (o.total || 0);
+
+    perDayMap.set(d, prev);
+  });
+
+  const perDay = [...perDayMap.entries()].sort(([a],[b]) => a.localeCompare(b));
+
+  return { 
+    ordersCount, 
+    totalSales, 
+    totalPizzas, 
+    totalDrinks, 
+    totalDesserts,
+    perSlot, 
+    perDay 
+  };
+}
+
+function renderStatsForRange(startDay, endDay){
+  const s = computeStatsForRange(startDay, endDay);
+
+  const periodLabel = (startDay || endDay)
+    ? `<p class="help">Période : ${startDay || '…'} → ${endDay || '…'}</p>`
+    : '';
+
+  const cards = `
+    ${periodLabel}
+    <div class="stats-cards">
+      <div class="stats-card"><h4>Commandes</h4><div class="v">${s.ordersCount}</div></div>
+      <div class="stats-card"><h4>Pizzas</h4><div class="v">${s.totalPizzas}</div></div>
+      <div class="stats-card"><h4>Total ventes</h4><div class="v">${euro(s.totalSales)}</div></div>
+    </div>
+    <div class="stats-cards">
+      <div class="stats-card"><h4>Boissons</h4><div class="v">${s.totalDrinks}</div></div>
+      <div class="stats-card"><h4>Desserts</h4><div class="v">${s.totalDesserts}</div></div>
+    </div>`;
+
+  let table = '';
+if (s.perSlot.length){
+  const max = Math.max(1, ...s.perSlot.map(([,v]) => v.pizzas));
+  const rows = s.perSlot.map(([slot, stats]) => {
+    const n   = stats.pizzas;
+    const pct = Math.round((n / max) * 100);
+    return `<tr>
+      <td>${slot}</td>
+      <td><div class="bar"><span style="width:${pct}%"></span></div></td>
+      <td style="text-align:right">${n}</td>
+    </tr>`;
+  }).join('');
+  table = `
+    <div class="stats-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Créneau</th>
+            <th style="width:60%">Répartition</th>
+            <th style="text-align:right">Pizzas</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+} else {
+  table = '<p class="help">Aucune commande pour cette période.</p>';
+}
+
+  byId('statsContent').innerHTML = cards + table;
+}
+
+function openStats(){
+  const startInput = byId('statsStart');
+  const endInput   = byId('statsEnd');
+  const today      = todayISO();
+
+  if (startInput && endInput) {
+    if (!startInput.value) startInput.value = today;
+    if (!endInput.value)   endInput.value   = today;
+
+    const refresh = () => {
+      renderStatsForRange(startInput.value || '', endInput.value || '');
+    };
+
+    startInput.onchange = refresh;
+    endInput.onchange   = refresh;
+  }
+
+  const btnToday = byId('statsToday');
+  if (btnToday && startInput && endInput) {
+    btnToday.onclick = () => {
+      const t = todayISO();
+      startInput.value = t;
+      endInput.value   = t;
+      renderStatsForRange(t, t);
+    };
+  }
+
+  const btnMonth = byId('statsThisMonth');
+  if (btnMonth && startInput && endInput) {
+    btnMonth.onclick = () => {
+      const d     = new Date();
+      const year  = d.getFullYear();
+      const month = d.getMonth(); // 0–11
+
+      const first = new Date(year, month, 1);
+      const last  = new Date(year, month + 1, 0);
+
+      const toISO = (dd) => dd.toISOString().slice(0, 10);
+
+      const s = toISO(first);
+      const e = toISO(last);
+
+      startInput.value = s;
+      endInput.value   = e;
+      renderStatsForRange(s, e);
+    };
+  }
+
+  const initStart = startInput?.value || today;
+  const initEnd   = endInput?.value   || today;
+  renderStatsForRange(initStart, initEnd);
+
+  byId('statsModal').classList.add('open');
+}
+
+function exportStatsCSV(){
+  const start = byId('statsStart')?.value || '';
+  const end   = byId('statsEnd')?.value   || '';
+
+  const s = computeStatsForRange(start, end);
+
+  if (!s.perSlot.length) {
+    alert('Aucune commande dans cette période.');
+    return;
+  }
+
+  const esc = (v) => {
+    const str = String(v == null ? '' : v);
+    return /[;"\n]/.test(str) ? '"' + str.replace(/"/g, '""') + '"' : str;
+  };
+
+  // En-têtes : par créneau, avec boissons & desserts
+  const rows = [[
+    'creneau',
+    'commandes',
+    'pizzas',
+    'boissons',
+    'desserts',
+    'total_ventes'
+  ]];
+
+  let totalCmd = 0;
+  let totalPiz = 0;
+  let totalDrk = 0;
+  let totalDes = 0;
+  let totalVte = 0;
+
+  s.perSlot.forEach(([slot, stats]) => {
+    rows.push([
+      slot,
+      String(stats.orders),
+      String(stats.pizzas),
+      String(stats.drinks),
+      String(stats.desserts),
+      String(stats.total).replace('.', ',')
+    ]);
+    totalCmd += stats.orders;
+    totalPiz += stats.pizzas;
+    totalDrk += stats.drinks;
+    totalDes += stats.desserts;
+    totalVte += stats.total;
+  });
+
+  // Ligne de total global de la période
+  rows.push([]);
+  rows.push([
+    'Total periode',
+    String(totalCmd),
+    String(totalPiz),
+    String(totalDrk),
+    String(totalDes),
+    String(totalVte).replace('.', ',')
+  ]);
+
+  const csv  = rows.map(r => r.map(esc).join(';')).join('\n');
+  const BOM  = '\uFEFF';
+  const blob = new Blob([BOM + csv], { type:'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  const label = (start || end) ? `${start || ''}_au_${end || ''}` : todayISO();
+  a.href = url;
+  a.download = `stats_par_creneau_${label}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportDrinksDessertsCSV(){
+  const start = byId('statsStart')?.value || '';
+  const end   = byId('statsEnd')?.value   || '';
+
+  // On réutilise la même logique de période que computeStatsForRange
+  const allOrders = [...savedOrders, ...archivedOrders].filter(o => {
+    const d = sameDayISO(o.at);
+    if (start && d < start) return false;
+    if (end   && d > end)   return false;
+    return true;
+  });
+
+  if (!allOrders.length){
+    alert('Aucune commande dans cette période.');
+    return;
+  }
+
+  // Agrégation par article boisson/dessert
+  const map = new Map(); // clé = kind:name
+
+  allOrders.forEach(o => {
+    (o.items || []).forEach(line => {
+      const kind = lineKind(line); // 'drink', 'dessert', 'pizza', 'other'
+      if (kind !== 'drink' && kind !== 'dessert') return;
+
+      const name = line.name || '???';
+      const qty  = Number(line.qty || 0);
+      const unit = Number(line.unitPrice || 0);
+      const totalLine = qty * unit;
+
+      const key = kind + ':' + name;
+      const prev = map.get(key) || { kind, name, qty:0, total:0 };
+      prev.qty   += qty;
+      prev.total += totalLine;
+      map.set(key, prev);
+    });
+  });
+
+  if (!map.size){
+    alert('Aucune boisson ni dessert dans cette période.');
+    return;
+  }
+
+  // On met les lignes dans un tableau trié par type puis nom
+  const rowsData = [...map.values()].sort((a,b) => {
+    if (a.kind !== b.kind) return a.kind.localeCompare(b.kind);
+    return a.name.localeCompare(b.name);
+  });
+
+  const esc = (v) => {
+    const str = String(v == null ? '' : v);
+    return /[;"\n]/.test(str) ? '"' + str.replace(/"/g, '""') + '"' : str;
+  };
+
+  const rows = [[
+    'type',
+    'nom',
+    'quantite',
+    'total_ventes'
+  ]];
+
+  let totalQty   = 0;
+  let totalSales = 0;
+
+  rowsData.forEach(r => {
+    const typeLabel = (r.kind === 'drink') ? 'boisson' : 'dessert';
+    rows.push([
+      typeLabel,
+      r.name,
+      String(r.qty),
+      String(r.total).replace('.', ',')
+    ]);
+    totalQty   += r.qty;
+    totalSales += r.total;
+  });
+
+  // Ligne de total global
+  rows.push([]);
+  rows.push([
+    'Total periode',
+    '',
+    String(totalQty),
+    String(totalSales).replace('.', ',')
+  ]);
+
+  const csv = rows.map(r => r.map(esc).join(';')).join('\n');
+  const BOM = '\uFEFF';
+  const blob = new Blob([BOM + csv], { type:'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  const label = (start || end) ? `${start || ''}_au_${end || ''}` : todayISO();
+  a.href = url;
+  a.download = `stats_boissons_desserts_${label}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
     /* ===== Admin JSON + Déverrouillage ===== */
     function applyAdmin(){
@@ -1560,7 +1941,11 @@ let db = null;
       openAdmin();
       syncUnlockToggle();
     });
-    byId('closeAdmin').addEventListener('click', ()=>{ const m=byId('adminModal'); m.classList.remove('open'); });
+
+    byId('closeAdmin').addEventListener('click', ()=>{
+      const m = byId('adminModal');
+      m.classList.remove('open');
+    });
     byId('saveCatalog').addEventListener('click', applyAdmin);
     byId('exportCatalog').addEventListener('click', exportCatalog);
     byId('resetCatalog').addEventListener('click', resetCatalog);
@@ -1574,11 +1959,45 @@ let db = null;
         unlockSlots = e.target.checked;
         localStorage.setItem('pizzeria.unlock', JSON.stringify(unlockSlots));
         updateSlotsCapacity();
-        showHealth(unlockSlots ? 'Déverrouillage des créneaux ACTIVÉ' : 'Déverrouillage désactivé', unlockSlots ? 'ok' : 'error', 1800);
+        showHealth(
+          unlockSlots
+            ? 'Déverrouillage des créneaux ACTIVÉ'
+            : 'Déverrouillage désactivé',
+          unlockSlots ? 'ok' : 'error',
+          1800
+        );
       }
     });
 
-    byId('toggleTheme').addEventListener('click', ()=>{ const next = document.documentElement.classList.contains('dark') ? 'light' : 'dark'; applyTheme(next, true); });
+    // Raccourci : Shift + R pour mode suppression dans l’historique
+    document.addEventListener('keydown', (e)=>{
+      if (e.shiftKey && (e.key === 'R' || e.key === 'r')) {
+
+        archiveDeleteMode = !archiveDeleteMode;
+
+        const s = byId('archiveStart')?.value || '';
+	const e = byId('archiveEnd')?.value || '';
+	renderArchive(s, e);
+
+        const clearBtn = byId('clearArchive');
+        if (clearBtn) {
+          clearBtn.style.display = archiveDeleteMode ? 'inline-flex' : 'none';
+        }
+
+        showHealth(
+          archiveDeleteMode
+            ? 'Mode suppression (historique) ACTIVÉ'
+            : 'Mode suppression (historique) désactivé',
+          archiveDeleteMode ? 'ok' : 'error',
+          1800
+        );
+      }
+    });
+
+    byId('toggleTheme').addEventListener('click', ()=>{
+      const next = document.documentElement.classList.contains('dark') ? 'light' : 'dark';
+      applyTheme(next, true);
+    });
 
     document.querySelectorAll('.tab').forEach(btn=>{
       btn.addEventListener('click', ()=>{
@@ -1593,8 +2012,10 @@ let db = null;
       updateFieldHints();
       handleClientChange();
     });
+
     byId('slot').addEventListener('input', updateFieldHints);
     byId('slot').addEventListener('change', updateFieldHints);
+
     byId('phone').addEventListener('input', ()=>{ 
       updateFieldHints();
       handlePhoneChange();
@@ -1635,11 +2056,16 @@ let db = null;
     });
 
     const _os = byId('openStats'); if(_os) _os.addEventListener('click', openStats);
-    const _cs = byId('closeStats'); if(_cs) _cs.addEventListener('click', ()=> byId('statsModal').classList.remove('open'));
+    const _cs = byId('closeStats'); if(_cs) _cs.addEventListener('click', ()=> 	byId('statsModal').classList.remove('open'));
+    const _exs = byId('exportStats');
+	if (_exs) _exs.addEventListener('click', exportStatsCSV);
+    const _exbd = byId('exportDrinksDesserts');
+	if (_exbd) _exbd.addEventListener('click', exportDrinksDessertsCSV);
 
     const _oa = byId('openArchive'); if(_oa) _oa.addEventListener('click', openArchive);
     const _ca = byId('closeArchive'); if(_ca) _ca.addEventListener('click', ()=> byId('archiveModal').classList.remove('open'));
     const _clear = byId('clearArchive'); if (_clear) _clear.addEventListener('click', clearArchive);
+    const _exportArch = byId('exportArchive'); if (_exportArch) _exportArch.addEventListener('click', exportArchiveCSV);
 
     window.addEventListener('error', (e)=>{ try{ showHealth('Erreur JS : '+ e.message, 'error'); }catch(_){} });
     window.addEventListener('unhandledrejection', (e)=>{ try{ const msg = (e.reason && (e.reason.message||e.reason)) || 'Rejet de promesse'; showHealth('Erreur : '+ msg, 'error'); }catch(_){} });
@@ -1668,13 +2094,6 @@ let db = null;
         renderOrderTable();
         buildSlots();
         updateFieldHints();
-
-        if(window.firebase && firebase.auth){
-          setupAuth();
-        }else{
-          showHealth('Firebase Auth non disponible', 'error');
-        }
-
         setTimeout(selfTests, 50);
       }catch(e){
         console.error(e);
